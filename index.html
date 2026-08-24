@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الصيانة - Enterprise v11.5 (Cloud Sync)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { cairo: ['Cairo', 'sans-serif'] }, colors: { primary: '#0288D1', primaryDark: '#01579B', bgLight: '#F8FAFC' } } }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #F8FAFC; margin: 0; padding: 0; }
+        .sidebar-link.active { background-color: #0288D1; color: white; font-weight: bold; }
+        .tab-btn.active { background-color: #0288D1; color: white; border-color: #0288D1; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #export-render-zone { position: absolute; left: -9999px; top: -9999px; background: white; z-index: -100; overflow: hidden; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background: white; }
+        }
+        @keyframes pulse-sync { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .syncing { animation: pulse-sync 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        
+        .spinner { border: 4px solid rgba(2, 136, 209, 0.2); border-left-color: #0288D1; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @media (max-width: 767px) {
+            body {
+                min-height: 100vh;
+                overflow-x: hidden;
+            }
+
+            #main-content {
+                min-height: 100vh;
+            }
+
+            header {
+                padding: 1rem !important;
+            }
+
+            #action-header-btn {
+                width: 100%;
+                justify-content: stretch;
+            }
+
+            #action-header-btn button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .grid-cols-2,
+            .grid-cols-2.md\:grid-cols-3 {
+                grid-template-columns: 1fr !important;
+            }
+
+            .md\:grid-cols-2,
+            .md\:grid-cols-3,
+            .lg\:grid-cols-3,
+            .lg\:grid-cols-4 {
+                grid-template-columns: 1fr !important;
+            }
+
+            .rounded-3xl,
+            .rounded-2xl,
+            .rounded-xl {
+                border-radius: 1rem !important;
+            }
+
+            .p-6,
+            .p-5,
+            .p-4 {
+                padding: 1rem !important;
+            }
+
+            .modal-card,
+            .fixed > div {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 auto;
+            }
+
+            .space-y-3 > * + *,
+            .space-y-4 > * + *,
+            .space-y-2 > * + * {
+                margin-top: 0.7rem !important;
+            }
+
+            .sidebar-link,
+            .tab-btn,
+            .bg-white.rounded-2xl,
+            .bg-white.rounded-3xl {
+                font-size: 0.8rem !important;
+            }
+
+            #main-sidebar {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: auto;
+                width: min(85vw, 320px);
+                height: 100vh;
+                z-index: 70;
+                transform: translateX(105%);
+                opacity: 0;
+                pointer-events: none;
+                transition: transform 0.25s ease, opacity 0.2s ease;
+                box-shadow: -12px 0 30px rgba(15, 23, 42, 0.25);
+            }
+
+            #main-sidebar.open {
+                transform: translateX(0);
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            #sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.42);
+                z-index: 60;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease;
+            }
+
+            #sidebar-backdrop.show {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col md:flex-row min-h-screen">
+
+    <div id="print-area"></div>
+    <div id="sidebar-backdrop" class="hidden md:hidden"></div>
+
+    <div id="global-loader" class="fixed inset-0 bg-white/95 z-[200] flex flex-col items-center justify-center hidden backdrop-blur-sm">
+        <div class="spinner mb-4"></div>
+        <h2 class="text-lg font-extrabold text-primary">جاري الاتصال بقاعدة البيانات...</h2>
+        <p class="text-xs text-gray-500 mt-1 font-bold">يرجى الانتظار لحين جلب التحديثات من السحابة</p>
+    </div>
+
+    <div id="login-screen" class="fixed inset-0 bg-gradient-to-br from-primaryDark via-primary to-sky-400 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 shadow-2xl w-full max-w-md text-center relative overflow-hidden">
+            <div class="bg-sky-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner text-primary text-3xl"><i class="fa-solid fa-user-shield"></i></div>
+            <h2 class="text-2xl font-extrabold text-gray-800 mb-1">تسجيل الدخول للنظام</h2>
+            <p class="text-xs text-gray-400 mb-6 font-semibold">نظام إدارة الصيانة المؤسسي v11.5 (Cloud)</p>
+            <form onsubmit="handleLogin(event)" class="space-y-4 text-right">
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">اسم المستخدم</label><div class="relative"><input type="text" id="login-username" required class="w-full border rounded-xl px-4 py-2.5 pl-10 text-sm focus:border-primary font-bold text-left" dir="ltr"><i class="fa-solid fa-user absolute top-3 left-3 text-gray-400"></i></div></div>
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">رمز الحماية (PIN)</label><div class="relative"><input type="password" id="login-pin" required class="w-full border rounded-xl px-4 py-2.5 pl-10 text-sm focus:border-primary font-bold text-left" dir="ltr"><i class="fa-solid fa-lock absolute top-3 left-3 text-gray-400"></i></div></div>
+                <div id="login-error" class="text-red-500 text-xs font-bold text-center hidden"><i class="fa-solid fa-triangle-exclamation ml-1"></i>بيانات الدخول غير صحيحة!</div>
+                <button type="submit" class="w-full bg-primary hover:bg-primaryDark text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-right-to-bracket"></i>دخول للنظام</button>
+            </form>
+        </div>
+    </div>
+
+    <aside id="main-sidebar" class="w-full md:w-64 bg-white shadow-lg z-10 flex flex-col justify-between shrink-0 hidden">
+        <div>
+            <div class="p-5 border-b flex items-center justify-between bg-gradient-to-l from-primary to-primaryDark text-white">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-screwdriver-wrench text-2xl"></i>
+                    <div><h1 class="font-bold text-lg leading-tight">نظام الصيانة</h1><span class="text-xs opacity-80 flex items-center gap-1"><i id="sync-icon" class="fa-solid fa-cloud"></i> متصل بالسحابة</span></div>
+                </div>
+            </div>
+            <div class="bg-sky-50 p-3 mx-3 my-2 rounded-xl border border-sky-100 flex items-center justify-between">
+                <div class="flex items-center gap-2"><div id="role-icon" class="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-user"></i></div><div><div id="logged-user-name" class="text-xs font-bold text-gray-800">مدير النظام</div><div id="logged-user-role" class="text-[10px] text-sky-600 font-extrabold">Super Admin</div></div></div>
+            </div>
+            <nav class="p-3 space-y-1">
+                <button onclick="switchView('dashboard', this)" id="nav-dashboard" class="sidebar-link active w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-sky-50"><i class="fa-solid fa-chart-pie text-lg"></i><span>الداشبورد والتحليلات</span></button>
+                <button id="nav-orders" onclick="switchView('orders', this)" class="sidebar-link w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-sky-50"><div class="flex items-center gap-3"><i class="fa-solid fa-clipboard-list text-lg"></i><span id="orders-nav-text">الطلبات النشطة</span></div><span id="badge-orders-count" class="bg-sky-100 text-primary px-2 py-0.5 rounded-full text-xs font-bold">0</span></button>
+                <button onclick="switchView('delivered', this)" id="nav-delivered" class="sidebar-link w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-emerald-50 hover:text-emerald-700"><div class="flex items-center gap-3"><i class="fa-solid fa-box-open text-lg"></i><span>الأرشيف والتوالف</span></div><span id="badge-delivered-count" class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold">0</span></button>
+                <button onclick="switchView('technicians', this)" id="nav-technicians" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-sky-50"><i class="fa-solid fa-users-gear text-lg"></i><span>المهندسون والتقارير</span></button>
+                <button onclick="switchView('settings', this)" id="nav-settings" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-sky-50"><i class="fa-solid fa-sliders text-lg"></i><span>الإعدادات الشاملة</span></button>
+            </nav>
+        </div>
+        <div class="p-4 border-t flex flex-col gap-2"><button onclick="handleLogout()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-right-from-bracket"></i>تسجيل خروج آمن</button></div>
+    </aside>
+
+    <main id="main-content" class="flex-1 flex flex-col h-screen overflow-hidden hidden">
+        <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between z-0">
+            <div class="flex items-center gap-3">
+                <button type="button" id="mobile-menu-toggle" onclick="toggleSidebar()" class="md:hidden bg-sky-50 text-primary w-11 h-11 rounded-xl flex items-center justify-center shadow-sm border border-sky-100">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <h2 id="page-title" class="text-xl font-bold text-gray-800">الداشبورد والتحليلات</h2>
+            </div>
+            <div id="action-header-btn" class="flex items-center gap-3">
+                <button type="button" onclick="fetchFromCloud(false)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm border border-slate-200 transition-all"><i class="fa-solid fa-rotate-right"></i><span class="hidden sm:inline">تحديث يدوي</span></button>
+                <button id="add-order-header-btn" onclick="openAddOrderModal()" class="bg-primary hover:bg-primaryDark text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-plus"></i><span>إستلام وتصدير ملصق</span></button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar">
+            <section id="view-dashboard" class="view-section space-y-6">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="kpi-grid"></div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-3 border-b pb-3">
+                        <h3 class="font-extrabold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-chart-column text-primary"></i> تحليل الأجهزة الأكثر صيانة</h3>
+                        <div class="flex gap-2 items-center bg-gray-50 p-1.5 rounded-xl border">
+                            <span class="text-[10px] font-bold text-gray-500">من:</span><input type="date" id="chart-date-from" onchange="renderCharts()" class="border rounded-lg px-2 py-1 text-xs font-bold focus:outline-none">
+                            <span class="text-[10px] font-bold text-gray-500">إلى:</span><input type="date" id="chart-date-to" onchange="renderCharts()" class="border rounded-lg px-2 py-1 text-xs font-bold focus:outline-none">
+                            <button onclick="document.getElementById('chart-date-from').value=''; document.getElementById('chart-date-to').value=''; renderCharts();" class="text-red-500 text-xs px-1" title="مسح الفلتر"><i class="fa-solid fa-times"></i></button>
+                        </div>
+                    </div>
+                    <div class="relative w-full h-64"><canvas id="devicesChart"></canvas></div>
+                </div>
+            </section>
+
+            <section id="view-orders" class="view-section hidden space-y-4">
+                <div class="flex flex-col md:flex-row gap-3 justify-between items-center bg-white p-4 rounded-2xl shadow-sm">
+                    <div class="relative w-full md:w-96 flex gap-2">
+                        <div class="relative flex-1"><input type="text" id="search-orders" oninput="renderOrders()" placeholder="بحث بالجهة، السيريال، أو التذكرة..." class="w-full pl-4 pr-10 py-2 border rounded-xl focus:border-primary text-sm font-bold"><i class="fa-solid fa-search absolute top-3 right-3 text-gray-400"></i></div>
+                        <button onclick="openScannerModal()" title="مسح باركود التذكرة بالكاميرا" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-sm font-extrabold flex items-center gap-1.5 shadow transition-all shrink-0"><i class="fa-solid fa-qrcode text-lg"></i><span class="hidden sm:inline text-xs">كاميرا</span></button>
+                    </div>
+                    <div id="tabs-container" class="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0"></div>
+                </div>
+                <div id="orders-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </section>
+
+            <section id="view-delivered" class="view-section hidden space-y-4">
+                <div class="flex flex-col md:flex-row gap-3 justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-emerald-100">
+                    <div class="relative w-full md:w-80"><input type="text" id="search-delivered" oninput="renderDelivered()" placeholder="بحث بالاسم أو التذكرة..." class="w-full pl-4 pr-10 py-2 border rounded-xl text-sm font-bold focus:border-emerald-500"><i class="fa-solid fa-search absolute top-3 right-3 text-gray-400"></i></div>
+                    <div class="flex gap-2 items-center w-full md:w-auto bg-gray-50 p-2 rounded-xl border border-gray-200">
+                        <span class="text-xs font-bold text-gray-500"><i class="fa-regular fa-calendar ml-1"></i>من:</span><input type="date" id="filter-date-from" onchange="renderDelivered()" class="border rounded-lg px-2 py-1 text-xs font-bold text-gray-700 focus:outline-none"><span class="text-xs font-bold text-gray-500">إلى:</span><input type="date" id="filter-date-to" onchange="renderDelivered()" class="border rounded-lg px-2 py-1 text-xs font-bold text-gray-700 focus:outline-none"><button onclick="document.getElementById('filter-date-from').value=''; document.getElementById('filter-date-to').value=''; renderDelivered();" class="bg-red-50 hover:bg-red-100 text-red-500 px-2 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <button type="button" onclick="showDeliveredSection('DELIVERED')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold shadow">تم التسليم</button>
+                    <button type="button" onclick="showDeliveredSection('REPLACED')" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold shadow">تم صرف بديل</button>
+                </div>
+                <div id="delivered-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden"></div>
+            </section>
+
+            <section id="view-technicians" class="view-section hidden space-y-4">
+                <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="flex items-center justify-between gap-3 mb-4">
+                        <h3 class="font-extrabold text-gray-700 flex items-center gap-2 text-sm md:text-base"><i class="fa-solid fa-print text-primary"></i> التقارير المجمعة للنظام</h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-[1fr_2fr] gap-4 items-end">
+                        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-3">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">من تاريخ:</label>
+                                    <input type="date" id="general-from" class="border border-gray-200 rounded-xl px-2 py-2 text-xs font-bold w-full focus:outline-none focus:border-primary bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">إلى تاريخ:</label>
+                                    <input type="date" id="general-to" class="border border-gray-200 rounded-xl px-2 py-2 text-xs font-bold w-full focus:outline-none focus:border-primary bg-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <button onclick="generateGeneralReport('RECEIVED')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-inbox"></i> المستلمة</button>
+                            <button onclick="generateGeneralReport('MAINTAINED')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-wrench"></i> المصانة</button>
+                            <button onclick="generateGeneralReport('DELIVERED')" class="w-full bg-gray-800 hover:bg-black text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-box-open"></i> المسلمة</button>
+                            <button onclick="generateGeneralReport('REPLACED')" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-right-left"></i> بدل تالف</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="relative w-full md:w-96"><input type="text" id="search-tech" oninput="renderTechnicians()" placeholder="بحث عن مهندس..." class="w-full pl-4 pr-10 py-2 border rounded-xl focus:border-primary text-sm"><i class="fa-solid fa-search absolute top-3 right-3 text-gray-400"></i></div>
+                </div>
+                <div id="technicians-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </section>
+
+            <section id="view-settings" class="view-section hidden">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl mx-auto mt-6">
+                    <div onclick="openModal('modal-manage-users')" class="bg-teal-700 hover:bg-teal-800 text-white p-6 rounded-3xl shadow-md cursor-pointer flex flex-col items-center justify-center text-center gap-3 transition-transform hover:-translate-y-1 h-40"><i class="fa-solid fa-user-shield text-4xl"></i><span class="font-bold text-lg">المستخدمون</span></div>
+                    <div onclick="openModal('modal-manage-customers')" class="bg-purple-600 hover:bg-purple-700 text-white p-6 rounded-3xl shadow-md cursor-pointer flex flex-col items-center justify-center text-center gap-3 transition-transform hover:-translate-y-1 h-40"><i class="fa-solid fa-users-between-lines text-4xl"></i><span class="font-bold text-lg">الموردون والجهات</span></div>
+                    <div onclick="openModal('modal-list-settings')" class="bg-indigo-600 hover:bg-indigo-700 text-white p-6 rounded-3xl shadow-md cursor-pointer flex flex-col items-center justify-center text-center gap-3 transition-transform hover:-translate-y-1 h-40"><i class="fa-solid fa-list-check text-4xl"></i><span class="font-bold text-lg">إعدادات الماركات</span></div>
+                    <div onclick="openModal('modal-acc-settings')" class="bg-amber-600 hover:bg-amber-700 text-white p-6 rounded-3xl shadow-md cursor-pointer flex flex-col items-center justify-center text-center gap-3 transition-transform hover:-translate-y-1 h-40"><i class="fa-solid fa-boxes-stacked text-4xl"></i><span class="font-bold text-lg">إعدادات التوابع</span></div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="export-render-zone"></div>
+
+    <div id="modal-export-options" class="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl relative text-center">
+            <button onclick="closeModal('modal-export-options')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-extrabold text-lg text-gray-800 mb-2 flex items-center justify-center gap-2"><i class="fa-solid fa-share-from-square text-primary"></i> خيارات الطباعة والحفظ</h3>
+            <div class="space-y-3 mt-4">
+                <button onclick="executeExport('PRINT')" class="w-full bg-gray-900 hover:bg-black text-white font-extrabold py-3 rounded-xl shadow-md flex justify-between items-center px-4 transition-all"><span class="flex items-center gap-2"><i class="fa-solid fa-print text-lg text-emerald-400"></i> طباعة مباشرة (للطابعة)</span><i class="fa-solid fa-chevron-left"></i></button>
+                <button onclick="executeExport('PDF')" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 rounded-xl shadow-md flex justify-between items-center px-4 transition-all"><span class="flex items-center gap-2"><i class="fa-solid fa-file-pdf text-lg"></i> حفظ وتنزيل (PDF)</span><i class="fa-solid fa-download"></i></button>
+                <button onclick="executeExport('IMAGE')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3 rounded-xl shadow-md flex justify-between items-center px-4 transition-all"><span class="flex items-center gap-2"><i class="fa-solid fa-image text-lg text-yellow-300"></i> حفظ كصورة (JPG)</span><i class="fa-solid fa-download"></i></button>
+            </div>
+            <p id="export-batch-hint" class="text-[10px] text-amber-700 font-extrabold mt-4 hidden bg-amber-50 p-2 rounded-lg">سيتم إدراج جميع الملصقات بالتسلسل.</p>
+        </div>
+    </div>
+
+    <div id="modal-add-order" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[95vh] overflow-y-auto">
+            <button onclick="closeModal('modal-add-order')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-extrabold text-lg text-gray-800 mb-3 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-primary"></i>إستلام وصيانة</h3>
+            
+            <div class="grid grid-cols-2 gap-2 bg-gray-100 p-1.5 rounded-2xl mb-4">
+                <button type="button" onclick="toggleEntryType('DEVICE')" id="btn-type-device" class="bg-primary text-white py-2 rounded-xl text-xs font-extrabold transition-all">📱 أجهزة (مفردة)</button>
+                <button type="button" onclick="toggleEntryType('ACCESSORY')" id="btn-type-acc" class="bg-gray-200 text-gray-600 py-2 rounded-xl text-xs font-extrabold transition-all">🔋 توابع (كميات)</button>
+            </div>
+            
+            <form id="form-add-order" class="space-y-3">
+                <input type="hidden" id="entry-type-val" value="DEVICE">
+                
+                <div id="fields-device" class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-xs font-bold text-gray-600 mb-1">الماركة</label><select id="ord-brand" class="w-full border rounded-xl px-3 py-2 text-sm focus:border-primary font-bold"></select></div>
+                        <div><label class="block text-xs font-bold text-gray-600 mb-1">الطراز والموديل</label><input type="text" id="ord-model" placeholder="مثال: 14 Pro Max" class="w-full border rounded-xl px-3 py-2 text-sm focus:border-primary font-bold"></div>
+                    </div>
+                    <div><label class="block text-xs font-bold text-gray-600 mb-1">الرقم التسلسلي (SN / IMEI)</label><input type="text" id="ord-serial" placeholder="SN-..." class="w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-1.5 text-xs font-bold text-left" dir="ltr"></div>
+                </div>
+                
+                <div id="fields-accessory" class="space-y-3 hidden bg-amber-50/60 p-3 rounded-2xl border border-amber-200">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-xs font-bold text-amber-900 mb-1">نوع التابع</label><select id="acc-type-select" class="w-full border rounded-xl px-3 py-2 text-sm font-extrabold text-amber-900 bg-white"></select></div>
+                        <div><label class="block text-xs font-extrabold text-red-600 mb-1">العدد (للتفكيك)</label><input type="number" id="acc-qty" min="1" max="50" value="1" class="w-full border-2 border-red-400 rounded-xl px-3 py-2 text-sm font-extrabold text-center text-red-600 bg-white"></div>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-3 space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">الجهة (رئيسي) <span class="text-red-500">*</span></label>
+                            <select id="ord-org" class="w-full border rounded-xl px-3 py-2 text-xs font-bold bg-white"></select>
+                        </div>
+                        <div><label class="block text-xs font-bold text-gray-600 mb-1">اسم الشخص</label><input type="text" id="ord-customer" placeholder="الاسم (اختياري)" class="w-full border rounded-xl px-3 py-2 text-xs font-bold"></div>
+                    </div>
+                    <div><label class="block text-xs font-extrabold text-red-700 mb-1">الأعطال / المشكلة <span class="text-red-500">*</span></label><textarea id="ord-faults" rows="2" placeholder="تفاصيل العطل بدقة..." class="w-full border-2 border-red-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-red-500"></textarea></div>
+                </div>
+                
+                <div class="pt-3">
+                    <button type="button" onclick="submitOrderForm(this)" class="w-full bg-primary hover:bg-primaryDark text-white font-extrabold py-3 rounded-xl transition-all shadow-lg text-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-share-from-square"></i> حفظ وإنشاء ملصق (5×3)
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- نافذة تفاصيل التذكرة وتحديث الحالة -->
+    <div id="modal-update-order" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative max-h-[95vh] overflow-y-auto">
+            <button onclick="closeModal('modal-update-order')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex justify-between items-center mb-3 border-b pb-2">
+                <h3 class="font-extrabold text-base text-gray-800 flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench text-primary"></i>تفاصيل التذكرة</h3>
+                <div class="flex gap-2">
+                    <button type="button" id="btn-delete-order" onclick="deleteOrderFromModal()" class="bg-red-50 hover:bg-red-100 text-red-700 font-extrabold py-1.5 px-2.5 rounded-xl text-xs flex items-center gap-1 border border-red-200 transition-all hidden"><i class="fa-solid fa-trash"></i> حذف</button>
+                    <button type="button" onclick="reprintSingleLabel()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold py-1.5 px-2.5 rounded-xl text-xs flex items-center gap-1 border border-indigo-200 transition-all"><i class="fa-solid fa-print"></i> ملصق</button>
+                </div>
+            </div>
+            
+            <div id="upd-device-info" class="mb-4"></div>
+            <div id="upd-assigned-badge" class="mb-3"></div>
+            
+            <form id="form-update-order" class="space-y-3 border-t pt-3">
+                <input type="hidden" id="upd-order-id">
+                <div id="claim-device-box" class="bg-amber-50 border-2 border-amber-300 p-4 rounded-2xl text-center space-y-2 hidden">
+                    <button type="button" onclick="claimDeviceByTech()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl shadow text-sm">استلام التذكرة وبدء العمل</button>
+                </div>
+                <div id="status-control-box" class="space-y-3">
+                    <div>
+                        <select id="upd-status-select" class="w-full border-2 border-sky-100 rounded-xl px-3 py-2 text-sm font-bold">
+                            <option value="NEW">✨ جديد</option>
+                            <option value="IN_PROGRESS">🛠️ قيد الإصلاح</option>
+                            <option value="WAITING_PART">⏳ بانتظار قطعة</option>
+                            <option value="READY">✅ جاهز للتسليم</option>
+                            <option value="DAMAGED">❌ تالف</option>
+                        </select>
+                    </div>
+                    <div><textarea id="upd-notes" rows="2" placeholder="ملاحظات الإنجاز..." class="w-full border rounded-xl px-3 py-2 text-xs font-bold"></textarea></div>
+                    
+                    <button type="button" onclick="openDeliveryReceiptModal('DELIVER')" id="btn-open-delivery" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl shadow flex items-center justify-center gap-2 mt-2 hidden"><i class="fa-solid fa-file-invoice"></i> إتمام التسليم وتصدير سند (A5)</button>
+                    <button type="button" onclick="openDeliveryReceiptModal('REPLACE')" id="btn-open-replace" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2.5 rounded-xl shadow flex items-center justify-center gap-2 mt-2 hidden"><i class="fa-solid fa-right-left"></i> إتمام صرف بديل وتصدير سند (A5)</button>
+                    
+                    <div id="default-save-btns" class="pt-2 flex gap-2">
+                        <button type="button" onclick="saveOrderStatus()" class="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl">حفظ التغييرات</button>
+                        <button type="button" onclick="closeModal('modal-update-order')" class="bg-gray-100 font-bold px-5 py-2.5 rounded-xl">إلغاء</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- نافذة مشتركة للتسليم والصرف البديل -->
+    <div id="modal-delivery-receipt" class="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto text-right">
+            <button onclick="closeModal('modal-delivery-receipt')" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h3 id="delivery-modal-title" class="font-extrabold text-lg mb-1 flex items-center gap-2 text-emerald-600"><i class="fa-solid fa-file-invoice"></i> إتمام العملية (A5)</h3>
+            <form id="form-delivery-receipt" class="space-y-4 mt-4">
+                <input type="hidden" id="del-order-id">
+                <div class="bg-gray-50 border border-gray-200 p-3 rounded-2xl text-xs space-y-1.5 font-bold">
+                    <div class="flex justify-between"><span>📱 <b id="del-device-info"></b></span><span>🏷️ تذكرة: <b id="del-id-text" class="text-primary font-mono"></b></span></div>
+                </div>
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-xs font-extrabold text-gray-700 mb-1">الجهة المستلمة</label><select id="del-org-input" required class="w-full border-2 border-gray-300 rounded-xl px-3 py-2 text-xs font-bold focus:border-primary bg-white"></select></div>
+                        <div><label class="block text-xs font-extrabold text-gray-700 mb-1">اسم المستلم</label><input type="text" id="del-name-input" required class="w-full border-2 border-gray-300 rounded-xl px-3 py-2 text-xs font-bold focus:border-primary"></div>
+                    </div>
+                    <div><label class="block text-xs font-extrabold text-gray-700 mb-1">التاريخ</label><input type="text" id="del-date-input" readonly class="w-full border bg-gray-100 rounded-xl px-3 py-2 text-xs font-mono font-bold text-center"></div>
+                </div>
+                <div class="pt-3">
+                    <button type="button" onclick="confirmAndPrintDeliveryA5()" id="delivery-submit-btn" class="w-full bg-emerald-600 text-white font-extrabold py-3 rounded-xl shadow-lg text-sm flex justify-center items-center gap-2"><i class="fa-solid fa-share-from-square"></i> تأكيد وتصدير السند</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-view-delivered" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative text-right"><button onclick="closeModal('modal-view-delivered')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-extrabold text-lg text-gray-800 mb-4 border-b pb-2 flex items-center gap-2 text-emerald-700"><i class="fa-solid fa-box-open"></i> تذكرة مغلقة</h3><input type="hidden" id="view-del-order-id"><div id="delivered-info-content" class="space-y-3 mb-5 text-sm font-bold text-gray-700 bg-gray-50 p-4 rounded-xl border border-gray-200"></div><button type="button" onclick="reprintDeliveredA5()" class="w-full bg-gray-900 hover:bg-black text-white font-extrabold py-3 rounded-xl shadow-lg text-sm flex justify-center items-center gap-2"><i class="fa-solid fa-share-from-square"></i> إعادة تصدير السند (A5)</button></div></div>
+
+    <div id="modal-scanner" class="fixed inset-0 bg-black/85 z-[70] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative text-center"><button onclick="closeScannerModal()" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-extrabold text-base mb-2 flex items-center justify-center gap-2 text-emerald-600"><i class="fa-solid fa-camera"></i> مسح باركود التذكرة</h3><div id="qr-reader" class="w-full bg-black rounded-2xl overflow-hidden border-2 border-emerald-500 min-h-[250px]"></div></div></div>
+
+    <div id="modal-manage-users" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] flex flex-col"><button onclick="closeModal('modal-manage-users')" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-bold text-lg mb-4 border-b pb-2">إدارة المستخدمين</h3><form onsubmit="saveNewUser(event)" class="bg-gray-50 p-3 rounded-2xl mb-4 space-y-3 border"><div class="grid grid-cols-2 gap-2"><input type="text" id="new-user-name" required placeholder="الاسم" class="border rounded-xl px-3 py-1.5 text-xs font-bold"><input type="text" id="new-user-username" required placeholder="اسم المستخدم" class="border rounded-xl px-3 py-1.5 text-xs font-bold text-left" dir="ltr"></div><div class="grid grid-cols-2 gap-2"><input type="password" id="new-user-pin" required placeholder="الرمز (PIN)" class="border rounded-xl px-3 py-1.5 text-xs font-bold text-left" dir="ltr"><select id="new-user-role" class="border-2 border-teal-200 rounded-xl px-3 py-1.5 text-xs font-extrabold text-teal-900 bg-teal-50"><option value="موظف استقبال">🖥️ موظف استقبال</option><option value="مهندس صيانة">🛠️ مهندس صيانة</option><option value="مدير نظام">👑 مدير نظام</option></select></div><button type="submit" class="w-full bg-teal-600 text-white font-bold py-2 rounded-xl text-xs">حفظ المستخدم</button></form><div class="flex-1 overflow-y-auto space-y-2 pr-1" id="users-list-container"></div></div></div>
+    <div id="modal-manage-customers" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] flex flex-col"><button onclick="closeModal('modal-manage-customers')" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-bold text-lg mb-4 border-b pb-2">إدارة الجهات</h3><form onsubmit="saveNewCustomerSupplier(event)" class="bg-gray-50 p-3 rounded-2xl mb-4 space-y-3 border"><div class="grid grid-cols-2 gap-2"><input type="text" id="cs-name" required placeholder="الاسم" class="border rounded-xl px-3 py-1.5 text-xs"><input type="text" id="cs-phone" required placeholder="الهاتف" class="border rounded-xl px-3 py-1.5 text-xs text-left" dir="ltr"></div><div class="grid grid-cols-2 gap-2"><select id="cs-type" class="border rounded-xl px-3 py-1.5 text-xs font-bold"><option value="مورد قطع">🛒 مورد قطع غيار</option><option value="عميل">👤 عميل صيانة</option></select></div><button type="submit" class="w-full bg-purple-600 text-white font-bold py-2 rounded-xl text-xs">حفظ السجل</button></form><div class="flex-1 overflow-y-auto space-y-2 pr-1" id="cs-list-container"></div></div></div>
+    <div id="modal-list-settings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative"><button onclick="closeModal('modal-list-settings')" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-bold text-lg mb-4 border-b pb-2">إعدادات الماركات</h3><form onsubmit="addNewBrand(event)" class="flex gap-2 mb-4"><input type="text" id="new-brand-input" required placeholder="ماركة جديدة..." class="flex-1 border rounded-xl px-3 py-2 text-xs font-bold"><button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold">إضافة</button></form><div id="brands-list-container" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div></div></div>
+    
+    <div id="modal-acc-settings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative"><button onclick="closeModal('modal-acc-settings')" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-bold text-lg mb-4 border-b pb-2">إعدادات أنواع التوابع</h3><form onsubmit="addNewAccType(event)" class="flex gap-2 mb-4"><input type="text" id="new-acc-input" required placeholder="نوع تابع جديد (مثال: كفرات، شواحن)..." class="flex-1 border rounded-xl px-3 py-2 text-xs font-bold"><button type="submit" class="bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-bold">إضافة</button></form><div id="acc-list-container" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div></div></div>
+
+    <script>
+        // ==========================================
+        // 🔴🔴 ضع الرابط الذي نسخته من جوجل هنا 🔴🔴
+        // ==========================================
+        const API_URL = "https://script.google.com/macros/s/AKfycby4b8G3bnQ9HSyHc8F6EJSUcxtbAVyQHwHmyAdrXgp76LqlrBefVSmYIFBFyjyzUOFUdQ/exec";
+
+        const defaultOrders = [];
+        const defaultUsers = [{ id: 1, name: 'مدير النظام', username: 'admin', pin: 'admin', role: 'مدير نظام' }, { id: 2, name: 'استقبال', username: 'rec', pin: '123', role: 'موظف استقبال' }, { id: 3, name: 'م. عبدالغني', username: 'tech1', pin: '123', role: 'مهندس صيانة' }, { id: 4, name: 'م. عمار', username: 'tech2', pin: '123', role: 'مهندس صيانة' }];
+        const defaultBrands = ['آبل', 'سامسونج', 'شاومي'];
+        const defaultCS = [{ id: 1, name: 'الجفينة', phone: '777', type: 'عميل' }];
+        const defaultAccTypes = ['بطاريات', 'شاشات', 'لوحات أم', 'قطع تالفة'];
+        
+        const STATUS_MAP = {
+            'NEW': '✨ جديد',
+            'IN_PROGRESS': '🛠️ قيد الإصلاح',
+            'WAITING_PART': '⏳ بانتظار قطعة',
+            'READY': '✅ جاهز للتسليم',
+            'DAMAGED': '❌ تالف',
+            'REPLACED': '🔄 تم صرف بديل',
+            'DELIVERED': '📦 تم التسليم'
+        };
+
+        let orders = JSON.parse(localStorage.getItem('sys_orders_v11_3')) || defaultOrders;
+        let users = JSON.parse(localStorage.getItem('sys_users_v11_3')) || defaultUsers;
+        let brandsList = JSON.parse(localStorage.getItem('sys_brands_v11_3')) || defaultBrands;
+        let csList = JSON.parse(localStorage.getItem('sys_cs_v11_3')) || defaultCS;
+        let accTypesList = JSON.parse(localStorage.getItem('sys_acc_types_v11_4')) || defaultAccTypes;
+        let loggedUser = JSON.parse(localStorage.getItem('sys_logged_user_v11_3')) || null;
+        
+        let currentOrderFilter = 'ALL'; let currentPrintBatch = []; let html5QrCodeScanner = null; let dashboardChart = null; 
+        let exportTypeContext = ''; let exportWidthMm = 0; let exportHeightMm = 0; let exportFilename = 'export';
+        let currentDeliveryAction = 'DELIVER'; 
+
+        function setSyncError() {
+            const syncIcon = document.getElementById('sync-icon');
+            if(syncIcon) { syncIcon.classList.remove('syncing', 'text-amber-300', 'text-white'); syncIcon.classList.add('text-red-400'); }
+        }
+
+        function normalizeCloudOrder(o) {
+            if (!o || !o.id) return null;
+            const copy = { ...o };
+            if (!copy.status || copy.status.toString().trim() === "") copy.status = 'NEW';
+            copy.statusText = STATUS_MAP[copy.status] || copy.status;
+            if (copy.assignedTech === 'null' || copy.assignedTech === 'undefined' || copy.assignedTech === "") copy.assignedTech = null;
+            if (copy.timestamp === undefined || copy.timestamp === null || copy.timestamp === '') copy.timestamp = Date.now();
+            copy.updatedAt = Number(copy.updatedAt || copy.timestamp || Date.now());
+            return copy;
+        }
+
+        function mergeCloudState(localItems, cloudItems) {
+            const localById = new Map();
+            const cloudById = new Map();
+
+            (localItems || []).forEach(item => {
+                if (item && item.id !== undefined && item.id !== null && item.id !== '') {
+                    localById.set(String(item.id), item);
+                }
+            });
+
+            (cloudItems || []).forEach(item => {
+                const normalized = normalizeCloudOrder(item);
+                if (normalized) cloudById.set(String(normalized.id), normalized);
+            });
+
+            const allIds = Array.from(new Set([...localById.keys(), ...cloudById.keys()]));
+            const merged = allIds.map(id => {
+                const localItem = localById.get(id);
+                const cloudItem = cloudById.get(id);
+
+                if (!localItem) return cloudItem;
+                if (!cloudItem) return localItem;
+
+                const localUpdated = Number(localItem.updatedAt || localItem.timestamp || 0);
+                const cloudUpdated = Number(cloudItem.updatedAt || cloudItem.timestamp || 0);
+
+                return cloudUpdated > localUpdated ? cloudItem : localItem;
+            });
+
+            return merged.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+        }
+
+        async function fetchFromCloud(isBackground = false) {
+            if (!API_URL || API_URL.includes("ضع_الرابط")) {
+                if(!isBackground) document.getElementById('global-loader').classList.add('hidden');
+                return;
+            }
+            const syncIcon = document.getElementById('sync-icon');
+            if(syncIcon) syncIcon.classList.add('syncing', 'text-amber-300');
+            
+            try {
+                const res = await fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({action: "GET_ALL"}) });
+                const data = await res.json();
+
+                if (data && data.orders) {
+                    const mergedOrders = mergeCloudState(orders, data.orders || []);
+                    orders = mergedOrders.filter(o => o && o.id && o.id.toString().trim() !== "");
+                }
+
+                if(data && data.users && data.users.length > 0) users = data.users;
+                if(data && data.cs) csList = Array.isArray(data.cs) ? data.cs : [];
+                if(data && data.brands && data.brands.length > 0) brandsList = data.brands;
+                if(data && data.accTypes && data.accTypes.length > 0) accTypesList = data.accTypes;
+                
+                saveState();
+                renderAll();
+                if(syncIcon) { syncIcon.classList.remove('syncing', 'text-amber-300', 'text-red-400'); syncIcon.classList.add('text-white'); }
+            } catch(e) { 
+                console.log("Offline or sync error", e); 
+                setSyncError();
+            } finally {
+                if(!isBackground) document.getElementById('global-loader').classList.add('hidden');
+            }
+        }
+
+        function pushOrderToCloud(o) {
+            if (!API_URL || API_URL.includes("ضع_الرابط")) return;
+            const payload = { ...o, updatedAt: Number(o.updatedAt || o.timestamp || Date.now()) };
+            fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({action: "UPSERT_ORDER", order: payload}) })
+            .catch(e => { console.log(e); setSyncError(); });
+        }
+
+        function deleteOrderInCloud(id) {
+            if (!API_URL || API_URL.includes("ضع_الرابط")) return;
+            fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({action: "DELETE_ORDER", orderId: id}) })
+            .catch(e => { console.log(e); setSyncError(); });
+        }
+
+        function pushSettingsToCloud() {
+            if (!API_URL || API_URL.includes("ضع_الرابط")) return;
+            fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({ action: "SYNC_SETTINGS", brands: brandsList, accTypes: accTypesList, users: users, cs: csList }) })
+            .catch(e => { console.log(e); setSyncError(); });
+        }
+
+        function saveState() { 
+            try {
+                localStorage.setItem('sys_orders_v11_3', JSON.stringify(orders)); 
+            } catch (e) {
+                console.warn("الذاكرة المحلية ممتلئة، سيتم تنظيف الأرشيف محلياً لتوفير مساحة...");
+                try {
+                    const activeOrders = orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'REPLACED');
+                    localStorage.setItem('sys_orders_v11_3', JSON.stringify(activeOrders));
+                } catch (err) {
+                    console.error("تعذر الحفظ المحلي، سيتم الاعتماد على الذاكرة العشوائية والسحابة فقط.", err);
+                }
+            }
+
+            try {
+                localStorage.setItem('sys_users_v11_3', JSON.stringify(users)); 
+                localStorage.setItem('sys_brands_v11_3', JSON.stringify(brandsList)); 
+                localStorage.setItem('sys_cs_v11_3', JSON.stringify(csList)); 
+                localStorage.setItem('sys_acc_types_v11_4', JSON.stringify(accTypesList)); 
+            } catch (e) {}
+
+            updateBadges(); 
+        }
+
+        function deleteOrderFromModal() {
+            try {
+                const id = document.getElementById('upd-order-id').value;
+                const confirmDelete = confirm('⚠️ تحذير: هل أنت متأكد من رغبتك في حذف التذكرة رقم #' + id + ' بشكل نهائي؟ لا يمكن التراجع عن هذا الإجراء.');
+                
+                if (confirmDelete) {
+                    orders = orders.filter(x => x.id.toString() !== id.toString());
+                    saveState();
+                    deleteOrderInCloud(id);
+                    closeModal('modal-update-order');
+                    renderAll();
+                }
+            } catch (err) {
+                alert('حدث خطأ أثناء محاولة الحذف: ' + err.message);
+            }
+        }
+        
+        function refreshAccessorySelectOptions() {
+            const accSelect = document.getElementById('acc-type-select');
+            if (!accSelect) return;
+
+            if (!accTypesList || accTypesList.length === 0) {
+                accSelect.innerHTML = '<option value="">لا توجد أصناف توابع</option>';
+                accSelect.disabled = true;
+                return;
+            }
+
+            accSelect.disabled = false;
+            accSelect.innerHTML = accTypesList.map(a => `<option value="${a}">📦 ${a}</option>`).join('');
+            const currentValue = accSelect.dataset.currentValue || '';
+            if (currentValue && accTypesList.includes(currentValue)) {
+                accSelect.value = currentValue;
+            }
+            accSelect.dataset.currentValue = accSelect.value;
+        }
+
+        function toggleEntryType(type) { 
+            document.getElementById('entry-type-val').value=type; 
+            const dBtn=document.getElementById('btn-type-device'); const aBtn=document.getElementById('btn-type-acc'); 
+            const dFields=document.getElementById('fields-device'); const aFields=document.getElementById('fields-accessory');
+            
+            if(type==='DEVICE'){ 
+                dBtn.className='bg-primary text-white py-2 rounded-xl text-xs font-extrabold transition-all'; 
+                aBtn.className='bg-gray-200 text-gray-600 py-2 rounded-xl text-xs font-extrabold transition-all'; 
+                dFields.classList.remove('hidden'); aFields.classList.add('hidden'); 
+            }else{ 
+                aBtn.className='bg-amber-600 text-white py-2 rounded-xl text-xs font-extrabold transition-all'; 
+                dBtn.className='bg-gray-200 text-gray-600 py-2 rounded-xl text-xs font-extrabold transition-all'; 
+                aFields.classList.remove('hidden'); dFields.classList.add('hidden'); 
+                refreshAccessorySelectOptions();
+            } 
+        }
+        
+        function toggleSidebar() {
+            const sidebar = document.getElementById('main-sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (!sidebar || window.innerWidth >= 768) return;
+
+            const shouldOpen = !sidebar.classList.contains('open');
+            sidebar.classList.toggle('open', shouldOpen);
+
+            if (backdrop) {
+                backdrop.classList.toggle('show', shouldOpen);
+                backdrop.classList.toggle('hidden', !shouldOpen);
+            }
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('main-sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (!sidebar) return;
+            sidebar.classList.remove('open');
+            if (backdrop) {
+                backdrop.classList.remove('show');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        function checkAuth() {
+            if (loggedUser) {
+                document.getElementById('login-screen').classList.add('hidden');
+                const sidebar = document.getElementById('main-sidebar');
+                if (sidebar) {
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.remove('open');
+                }
+                document.getElementById('main-content').classList.remove('hidden');
+                document.getElementById('logged-user-name').innerText = loggedUser.name;
+                const rI = document.getElementById('role-icon');
+                if(loggedUser.role === 'مدير نظام') { rI.innerHTML='<i class="fa-solid fa-crown"></i>'; rI.className='bg-amber-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs'; }
+                else if(loggedUser.role === 'مهندس صيانة') { rI.innerHTML='<i class="fa-solid fa-screwdriver-wrench"></i>'; rI.className='bg-emerald-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs'; }
+                applyRolePermissions(); renderAll();
+            } else { document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('main-sidebar').classList.add('hidden'); document.getElementById('main-content').classList.add('hidden'); }
+        }
+
+        function applyRolePermissions() {
+            const aB = document.getElementById('action-header-btn');
+            const addBtn = document.getElementById('add-order-header-btn');
+            const tC = document.getElementById('tabs-container');
+            const nDel = document.getElementById('nav-delivered');
+            const nSet = document.getElementById('nav-settings');
+            const nDash = document.getElementById('nav-dashboard');
+            const nTech = document.getElementById('nav-technicians');
+            const navOrders = document.getElementById('nav-orders');
+
+            if (loggedUser.role === 'مهندس صيانة') {
+                aB.classList.remove('hidden');
+                if (addBtn) addBtn.classList.add('hidden');
+                nDel.classList.add('hidden');
+                nSet.classList.add('hidden');
+                if (nDash) nDash.classList.add('hidden');
+                if (nTech) nTech.classList.add('hidden');
+                if (navOrders) navOrders.classList.add('active');
+                if (tC) {
+                    tC.innerHTML = `<button onclick="filterOrders('TECH_POOL', this)" class="tab-btn active px-4 py-1.5 rounded-xl border text-sm font-extrabold bg-amber-500 text-white border-amber-500">متاح للاستلام</button><button onclick="filterOrders('MY_ORDERS', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">عهدتي</button>`;
+                }
+                currentOrderFilter = 'TECH_POOL';
+                if (navOrders) {
+                    setTimeout(() => switchView('orders', navOrders), 10);
+                }
+            } else {
+                aB.classList.remove('hidden');
+                if (addBtn) addBtn.classList.remove('hidden');
+                nDel.classList.remove('hidden');
+                if (nDash) nDash.classList.remove('hidden');
+                if (nTech) nTech.classList.remove('hidden');
+                if(loggedUser.role === 'مدير نظام') nSet.classList.remove('hidden'); else nSet.classList.add('hidden');
+                if (tC) {
+                    tC.innerHTML = `<button onclick="filterOrders('ALL', this)" class="tab-btn active px-4 py-1.5 rounded-xl border text-sm font-bold">الكل (نشط)</button><button onclick="filterOrders('NEW', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">جديد</button><button onclick="filterOrders('READY', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-extrabold bg-emerald-100 text-emerald-800 border-emerald-300">جاهز للتسليم</button>`;
+                }
+                currentOrderFilter = 'ALL';
+            }
+        }
+        function handleLogin(e) { e.preventDefault(); const u = document.getElementById('login-username').value.trim().toLowerCase(); const p = document.getElementById('login-pin').value.trim(); const f = users.find(usr => usr.username.toLowerCase() === u && usr.pin === p); if(f){ loggedUser=f; localStorage.setItem('sys_logged_user_v11_3', JSON.stringify(f)); document.getElementById('login-error').classList.add('hidden'); e.target.reset(); document.getElementById('global-loader').classList.remove('hidden'); checkAuth(); fetchFromCloud(); } else { document.getElementById('login-error').classList.remove('hidden'); } }
+        function handleLogout() { loggedUser=null; localStorage.removeItem('sys_logged_user_v11_3'); checkAuth(); }
+        function switchView(viewId, btnElement) { document.querySelectorAll('.view-section').forEach(el=>el.classList.add('hidden')); document.getElementById(`view-${viewId}`).classList.remove('hidden'); if(btnElement){ document.querySelectorAll('.sidebar-link').forEach(el=>el.classList.remove('active')); btnElement.classList.add('active'); } if(window.innerWidth < 768) closeSidebar(); renderAll(); }
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); if(window.innerWidth < 768) closeSidebar(); if(id === 'modal-manage-users') renderUsers(); if(id === 'modal-manage-customers') renderCustomersSuppliers(); if(id === 'modal-list-settings') renderBrandsSettings(); if(id === 'modal-acc-settings') renderAccSettings(); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        
+        function refreshOrgSelectOptions() {
+            const orgSelect = document.getElementById('ord-org');
+            if (!orgSelect) return;
+
+            const orgOptions = (csList || []).map(item => item && item.name ? item.name : '').filter(Boolean);
+            if (!orgOptions.length) {
+                orgSelect.innerHTML = '<option value="">لا توجد جهات مسجلة</option>';
+                orgSelect.disabled = true;
+                return;
+            }
+
+            orgSelect.disabled = false;
+            orgSelect.innerHTML = orgOptions.map(org => `<option value="${org}">${org}</option>`).join('');
+
+            const current = orgSelect.dataset.currentValue || '';
+            if (current && orgOptions.includes(current)) {
+                orgSelect.value = current;
+            }
+            orgSelect.dataset.currentValue = orgSelect.value;
+        }
+
+        function refreshDeliveryOrgSelectOptions(defaultValue = '') {
+            const orgSelect = document.getElementById('del-org-input');
+            if (!orgSelect) return;
+
+            const orgOptions = (csList || []).map(item => item && item.name ? item.name : '').filter(Boolean);
+            if (!orgOptions.length) {
+                orgSelect.innerHTML = '<option value="">لا توجد جهات مسجلة</option>';
+                orgSelect.disabled = true;
+                return;
+            }
+
+            orgSelect.disabled = false;
+            orgSelect.innerHTML = '<option value="">اختر الجهة</option>' + orgOptions.map(org => `<option value="${org}">${org}</option>`).join('');
+            const target = defaultValue || orgSelect.dataset.currentValue || '';
+            if (target && orgOptions.includes(target)) {
+                orgSelect.value = target;
+            }
+            orgSelect.dataset.currentValue = orgSelect.value;
+        }
+
+        function openAddOrderModal() { const selectEl = document.getElementById('ord-brand'); if(selectEl) selectEl.innerHTML = brandsList.map(b => `<option value="${b}">${b}</option>`).join(''); refreshAccessorySelectOptions(); refreshOrgSelectOptions(); toggleEntryType('DEVICE'); openModal('modal-add-order'); }
+        
+        function submitOrderForm(btnElement) {
+            try {
+                if(btnElement) { btnElement.disabled = true; btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...'; }
+                const t = document.getElementById('entry-type-val').value;
+                const o = document.getElementById('ord-org').value.trim();
+                const f = document.getElementById('ord-faults').value.trim();
+                const modelVal = document.getElementById('ord-model').value.trim();
+
+                if (!o || !f) { alert('⚠️ يرجى تعبئة الحقول الإلزامية: (الجهة) و (الأعطال/المشكلة)'); return; }
+                if (t === 'DEVICE' && !modelVal) { alert('⚠️ يرجى تعبئة (الطراز والموديل) الخاص بالجهاز'); return; }
+
+                const dObj = new Date();
+                const ds = `${dObj.getFullYear()}/${dObj.getMonth()+1}/${dObj.getDate()}`;
+
+                let maxId = orders.length > 0 ? Math.max(...orders.map(x => parseInt(x.id) || 0)) : 0;
+                currentPrintBatch = [];
+                const ts = new Date().getTime();
+
+                if(t === 'DEVICE'){
+                    maxId++;
+                    const brandVal = document.getElementById('ord-brand').value || 'غير محدد';
+                    const n = { id: maxId, entryType: 'DEVICE', brand: brandVal, model: modelVal, serial: document.getElementById('ord-serial').value || '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts, updatedAt: ts, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
+                    orders.unshift(n);
+                    currentPrintBatch.push(n);
+                    pushOrderToCloud(n);
+                } else {
+                    const at = document.getElementById('acc-type-select').value || 'توابع';
+                    const q = parseInt(document.getElementById('acc-qty').value) || 1;
+                    for (let i = 1; i <= q; i++) {
+                        maxId++;
+                        const n = { id: maxId, entryType: 'ACCESSORY', brand: at, model: `قطعة ${i}`, serial: '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts, updatedAt: ts, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
+                        orders.unshift(n);
+                        currentPrintBatch.push(n);
+                        pushOrderToCloud(n);
+                    }
+                }
+                
+                saveState();
+                closeModal('modal-add-order');
+                document.getElementById('form-add-order').reset();
+                renderAll();
+                prepareLabelExport();
+                
+            } catch(err) { alert('حدث خطأ أثناء الحفظ: ' + err.message);
+            } finally { if(btnElement) { btnElement.disabled = false; btnElement.innerHTML = '<i class="fa-solid fa-share-from-square"></i> حفظ وإنشاء ملصق (5×3)'; } }
+        }
+        
+        function triggerExportModal(htmlContent, wMm, hMm, filename, typeCtx) {
+            exportTypeContext = typeCtx; exportWidthMm = wMm; exportHeightMm = hMm; exportFilename = filename;
+            const rz = document.getElementById('export-render-zone');
+            rz.style.width = wMm + 'mm'; rz.style.minHeight = hMm + 'mm';
+            rz.innerHTML = htmlContent;
+            
+            if(currentPrintBatch.length > 1 && typeCtx === 'LABEL') document.getElementById('export-batch-hint').classList.remove('hidden'); 
+            else document.getElementById('export-batch-hint').classList.add('hidden');
+            openModal('modal-export-options');
+        }
+
+        function executeExport(exportMethod) {
+            const rz = document.getElementById('export-render-zone');
+            closeModal('modal-export-options');
+            
+            if(exportMethod === 'PRINT') {
+                let style = document.getElementById('dynamic-print-style');
+                if (!style) { style = document.createElement('style'); style.id = 'dynamic-print-style'; document.head.appendChild(style); }
+                style.innerHTML = `@media print { @page { size: ${exportWidthMm}mm ${exportHeightMm}mm; margin: 0; } }`;
+                const printArea = document.getElementById('print-area'); printArea.innerHTML = rz.innerHTML;
+                setTimeout(() => { window.print(); setTimeout(() => { printArea.innerHTML = ''; }, 500); }, 100);
+            } 
+            else if (exportMethod === 'IMAGE' || exportMethod === 'PDF') {
+                rz.style.left = '0'; rz.style.top = '10000px'; rz.style.zIndex = '-1';
+                html2canvas(rz, { scale: 3, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    if(exportMethod === 'IMAGE') { let link = document.createElement('a'); link.download = exportFilename + '.jpg'; link.href = imgData; link.click(); } 
+                    else if(exportMethod === 'PDF') { const { jsPDF } = window.jspdf; const orientation = exportWidthMm > exportHeightMm ? 'l' : 'p'; const pdf = new jsPDF(orientation, 'mm', [exportWidthMm, exportHeightMm]); pdf.addImage(imgData, 'JPEG', 0, 0, exportWidthMm, exportHeightMm); pdf.save(exportFilename + '.pdf'); }
+                    rz.style.left = '-9999px'; rz.style.top = '-9999px'; 
+                }).catch(err => { rz.style.left = '-9999px'; });
+            }
+            currentPrintBatch = [];
+        }
+
+        function prepareLabelExport() {
+            if(currentPrintBatch.length === 0) return;
+            let htmlContent = `
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap');
+                    .lbl {
+                        width: 48mm;
+                        min-height: 28mm;
+                        margin: 1mm auto;
+                        padding: 2mm 3mm;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        box-sizing: border-box;
+                        border: 2px solid #111827;
+                        border-radius: 6px;
+                        background: #fff;
+                        font-family: 'Cairo', sans-serif;
+                        direction: rtl;
+                        page-break-after: always;
+                    }
+                    .top-row {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        width: 100%;
+                        border-bottom: 1.5px dashed #111827;
+                        padding-bottom: 2px;
+                    }
+                    .dt {
+                        font-size: 10px;
+                        font-weight: 800;
+                        color: #111827;
+                    }
+                    .id-box {
+                        font-size: 13px;
+                        font-weight: 900;
+                        color: #111827;
+                        background: #f3f4f6;
+                        padding: 2px 7px;
+                        border-radius: 4px;
+                    }
+                    .center-org {
+                        font-size: 18px;
+                        font-weight: 900;
+                        text-align: center;
+                        color: #111827;
+                        line-height: 1.2;
+                        word-break: break-word;
+                        overflow-wrap: anywhere;
+                        min-height: 15mm;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .device-meta {
+                        font-size: 8px;
+                        font-weight: 700;
+                        color: #475569;
+                        line-height: 1.4;
+                        text-align: center;
+                        word-break: break-word;
+                        overflow-wrap: anywhere;
+                        min-height: 6mm;
+                    }
+                </style>
+                ${currentPrintBatch.map(o => `
+                    <div class="lbl" dir="rtl">
+                        <div class="top-row">
+                            <span class="dt">${o.date || ''}</span>
+                            <div class="id-box">#${o.id}</div>
+                        </div>
+                        <div class="center-org">${o.org || 'غير محدد'}</div>
+                        ${o.entryType === 'DEVICE' ? `<div class="device-meta">${(o.brand || '') + ' ' + (o.model || '')}<br>${o.faults || ''}</div>` : ''}
+                    </div>
+                `).join('')}
+            `;
+            triggerExportModal(htmlContent, 50, 30 * currentPrintBatch.length, `ملصق_تذكرة_${currentPrintBatch[0].id}`, 'LABEL');
+        }
+
+        function reprintSingleLabel() { const id = document.getElementById('upd-order-id').value; const o = orders.find(x => x.id.toString() === id.toString()); if(o){ closeModal('modal-update-order'); currentPrintBatch=[o]; prepareLabelExport(); } }
+
+        function openDeliveryReceiptModal(actionType = 'DELIVER') { 
+            const id = document.getElementById('upd-order-id').value; 
+            const o = orders.find(x => x.id.toString() === id.toString()); 
+            if(!o) return; 
+            
+            currentDeliveryAction = actionType;
+            closeModal('modal-update-order'); 
+            
+            document.getElementById('del-order-id').value = o.id; 
+            document.getElementById('del-id-text').innerText = `#${o.id}`; 
+            refreshDeliveryOrgSelectOptions(o.org || '');
+            document.getElementById('del-name-input').value = o.customer || ''; 
+            document.getElementById('del-date-input').value = `${new Date().toLocaleDateString('ar-EG')} - ${new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'})}`; 
+            
+            const titleEl = document.getElementById('delivery-modal-title');
+            const btnEl = document.getElementById('delivery-submit-btn');
+            
+            if(actionType === 'REPLACE') {
+                titleEl.innerHTML = `<i class="fa-solid fa-right-left"></i> إتمام صرف بديل (A5)`;
+                btnEl.innerHTML = `<i class="fa-solid fa-share-from-square"></i> تأكيد صرف البديل وتصدير السند`;
+            } else {
+                titleEl.innerHTML = `<i class="fa-solid fa-file-invoice"></i> إتمام التسليم (A5)`;
+                btnEl.innerHTML = `<i class="fa-solid fa-share-from-square"></i> تأكيد التسليم وتصدير السند`;
+            }
+            
+            openModal('modal-delivery-receipt'); 
+        }
+
+        function confirmAndPrintDeliveryA5() { 
+            try {
+                const id = document.getElementById('del-order-id').value; 
+                const o = orders.find(x => x.id.toString() === id.toString()); 
+                if(!o) return; 
+                
+                const orgVal = document.getElementById('del-org-input').value.trim();
+                const nameVal = document.getElementById('del-name-input').value.trim();
+                
+                if (!orgVal || !nameVal) {
+                    alert('⚠️ يرجى تعبئة الحقول الإلزامية: (الجهة المستلمة) و (اسم المستلم)');
+                    return;
+                }
+                
+                o.status = currentDeliveryAction === 'REPLACE' ? 'REPLACED' : 'DELIVERED'; 
+                o.statusText = STATUS_MAP[o.status]; 
+                o.updatedAt = Date.now();
+                o.deliveryDetails = { 
+                    action: currentDeliveryAction,
+                    org: orgVal, 
+                    name: nameVal, 
+                    dateStr: document.getElementById('del-date-input').value, 
+                    timestamp: new Date().getTime() 
+                }; 
+                
+                saveState(); 
+                pushOrderToCloud(o); 
+                closeModal('modal-delivery-receipt'); 
+                renderAll(); 
+                executePrintA5(o); 
+                
+            } catch(err) {
+                alert('⚠️ حدث خطأ أثناء إصدار السند: ' + err.message);
+            }
+        }
+
+        function reprintDeliveredA5() { const id = document.getElementById('view-del-order-id').value; const o = orders.find(x => x.id.toString() === id.toString()); if(o){ closeModal('modal-view-delivered'); executePrintA5(o); } }
+        
+        function executePrintA5(o) { 
+            const isReplace = (o.deliveryDetails && o.deliveryDetails.action === 'REPLACE');
+            const docTitle = isReplace ? 'سند صرف جهاز بديل' : 'سند تسليم وضمان صيانة';
+            const noteText = isReplace ? '* يعتبر هذا السند إقراراً بالاستلام لجهاز بديل نيابة عن الجهاز التالف.' : '* يعتبر هذا السند إقراراً بالاستلام وضماناً على جودة الصيانة.';
+
+            let htmlContent = `<style>.a5-page{width:148mm;min-height:210mm;padding:12mm;box-sizing:border-box;background:white;} .hd-wrap{background:linear-gradient(to right, ${isReplace ? '#b45309, #d97706' : '#01579B, #0288D1'});color:white;text-align:center;padding:15px;border-radius:10px 10px 0 0;margin-bottom:15px;} .hd-wrap h2{margin:0;font-size:24px;font-weight:900;} .tb{width:100%;border-collapse:collapse;margin-bottom:15px;} .tb td, .tb th{border:1px solid #cbd5e1;padding:8px;font-size:13px;text-align:right;} .tb th{background:${isReplace ? '#d97706' : '#0288D1'};color:white;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;} .sig{display:flex;justify-content:space-between;margin-top:40px;text-align:center;font-size:14px;font-weight:800;color:#334155;} .sig div{width:40%;border-top:2px solid #94a3b8;padding-top:5px;}</style><div class="a5-page" dir="rtl"><div class="hd-wrap"><h2>${docTitle}</h2><p style="margin:5px 0 0; font-size:12px; font-family:monospace;">Ticket: #${o.id}</p></div><table class="tb" style="border:none; margin-bottom:20px;"><tr><td style="border:none; padding:4px;"><b>التاريخ:</b> ${o.deliveryDetails.dateStr}</td><td style="border:none; padding:4px;"><b>المستلم:</b> ${o.deliveryDetails.name} (${o.deliveryDetails.org})</td></tr></table><table class="tb"><thead><tr><th>الجهاز الأساسي</th><th>السيريال</th><th>المهندس</th></tr></thead><tbody><tr><td>${o.brand || ''} ${o.model || ''}</td><td dir="ltr">${o.serial||'بدون'}</td><td>${o.assignedTech||'غير محدد'}</td></tr></tbody></table><table class="tb"><thead><tr><th>العطل المبلغ عنه</th><th>ملاحظات الإنجاز / الاستبدال</th></tr></thead><tbody><tr><td>${o.faults || ''}</td><td>${o.notes || ''}</td></tr></tbody></table><p style="font-size:10px; color:#64748b; text-align:center;">${noteText}</p><div class="sig"><div>توقيع موظف الاستقبال</div><div>توقيع العميل المستلم</div></div></div>`; 
+            triggerExportModal(htmlContent, 148, 210, `سند_${o.id}`, 'A5'); 
+        }
+
+        function claimDeviceByTech() {
+            try {
+                const id = document.getElementById('upd-order-id').value; 
+                const o = orders.find(x => x.id.toString() === id.toString()); 
+                if(o){ 
+                    o.assignedTech = loggedUser.name; 
+                    o.status = 'IN_PROGRESS'; 
+                    o.statusText = STATUS_MAP[o.status]; 
+                    o.updatedAt = Date.now();
+                    saveState(); 
+                    pushOrderToCloud(o); 
+                    closeModal('modal-update-order'); 
+                    
+                    alert('تم الاستلام بنجاح، تم نقل الجهاز إلى عهدتك!');
+                    
+                    const tabs = document.querySelectorAll('#tabs-container .tab-btn');
+                    if(tabs.length > 1) { filterOrders('MY_ORDERS', tabs[1]); } 
+                    else { currentOrderFilter = 'MY_ORDERS'; renderAll(); }
+                } else {
+                    alert('خطأ: لم يتم العثور على بيانات التذكرة.');
+                }
+            } catch (err) {
+                alert('حدث خطأ أثناء الاستلام: ' + err.message);
+            }
+        }
+
+        function saveOrderStatus() { 
+            try {
+                const id = document.getElementById('upd-order-id').value; 
+                const o = orders.find(x => x.id.toString() === id.toString()); 
+                
+                if(o) { 
+                    o.status = document.getElementById('upd-status-select').value; 
+                    o.statusText = STATUS_MAP[o.status] || o.status; 
+                    o.notes = document.getElementById('upd-notes').value || ''; 
+                    o.updatedAt = Date.now();
+                    
+                    saveState(); 
+                    pushOrderToCloud(o); 
+                    closeModal('modal-update-order'); 
+                    renderAll(); 
+                    alert('✅ تم حفظ التغييرات بنجاح!');
+                } 
+            } catch (err) {
+                alert('⚠️ حدث خطأ أثناء الحفظ: ' + err.message);
+            }
+        }
+        
+        function renderOrders() { 
+            const searchInput = document.getElementById('search-orders');
+            const v = searchInput ? (searchInput.value || '').toString().toLowerCase().trim() : ''; 
+            const c = document.getElementById('orders-list-container'); 
+            
+            let f = orders.filter(o => {
+                if (o.status === 'DELIVERED' || o.status === 'REPLACED') return false; 
+                let brandStr = (o.brand || '').toString().toLowerCase();
+                let modelStr = (o.model || '').toString().toLowerCase();
+                let orgStr = (o.org || '').toString().toLowerCase();
+                let idStr = (o.id || '').toString();
+                let serialStr = (o.serial || '').toString().toLowerCase();
+                return brandStr.includes(v) || modelStr.includes(v) || serialStr.includes(v) || idStr === v || orgStr.includes(v);
+            }); 
+            
+            if(loggedUser && loggedUser.role === 'مهندس صيانة'){ 
+                f = f.filter(o => {
+                    let tech = (o.assignedTech || '').toString().trim();
+                    let isUnassigned = (tech === '' || tech === 'null' || tech === 'undefined');
+                    let me = (loggedUser.name || '').toString().trim();
+                    if (currentOrderFilter === 'TECH_POOL') return isUnassigned;
+                    if (currentOrderFilter === 'MY_ORDERS') return tech === me;
+                    return false;
+                }); 
+            } else { 
+                if(currentOrderFilter === 'NEW') f = f.filter(o => o.status === 'NEW' || !o.status); 
+                if(currentOrderFilter === 'READY') f = f.filter(o => o.status === 'READY'); 
+            } 
+            
+            document.getElementById('badge-orders-count').innerText = orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'REPLACED').length; 
+            
+            c.innerHTML = f.map(o => `<div onclick="openUpdateOrderModal(${o.id})" class="bg-white rounded-3xl p-6 shadow-md border-r-8 ${o.status==='READY'?'border-emerald-500':(o.status==='DAMAGED'?'border-red-500':'border-primary')} flex flex-col justify-between cursor-pointer hover:shadow-xl transition-all"><div class="flex justify-between items-center mb-4"><span class="bg-gray-100 text-gray-800 text-[10px] px-3 py-1 rounded-full font-black">${o.date || ''}</span><span class="text-2xl font-black ${o.status==='DAMAGED'?'text-red-500':'text-primary'}">#${o.id}</span></div><div class="text-right space-y-2"><div class="text-lg font-black text-primaryDark">${o.org || 'غير محدد'}</div><div class="text-sm font-bold text-gray-700">الجهاز: ${o.brand || ''} - ${o.model || ''}</div><div class="text-xs font-semibold text-gray-500">سيريال: ${o.serial || 'لا يوجد'}</div></div><div class="mt-4 pt-3 border-t flex justify-between items-center"><span class="text-[11px] font-black ${o.status==='READY'?'text-emerald-600':(o.status==='DAMAGED'?'text-red-600':'text-gray-500')}">${o.statusText || 'جديد'}</span><span class="text-[10px] font-bold text-gray-400">🛠️ ${o.assignedTech || 'غير مستلم'}</span></div></div>`).join(''); 
+        }
+        
+        function filterOrders(s, b) { currentOrderFilter = s; document.querySelectorAll('#tabs-container .tab-btn').forEach(el=>el.classList.remove('active')); if(b)b.classList.add('active'); renderOrders(); }
+        
+        function showDeliveredSection(type) {
+            const container = document.getElementById('delivered-list-container');
+            if (!container) return;
+            renderDelivered(type);
+            container.classList.remove('hidden');
+        }
+
+        function renderDelivered(filterType = 'ALL') { 
+            const searchInput = document.getElementById('search-delivered');
+            const v = searchInput ? (searchInput.value || '').toString().toLowerCase().trim() : ''; 
+            const fd = document.getElementById('filter-date-from').value; 
+            const td = document.getElementById('filter-date-to').value; 
+            
+            let f = orders.filter(o => o.status === 'DELIVERED' || o.status === 'REPLACED');
+            if(filterType === 'DELIVERED') f = f.filter(o => o.status === 'DELIVERED');
+            if(filterType === 'REPLACED') f = f.filter(o => o.status === 'REPLACED');
+            
+            if(v) f = f.filter(o => {
+                let brandStr = (o.brand || '').toString().toLowerCase();
+                let modelStr = (o.model || '').toString().toLowerCase();
+                let idStr = (o.id || '').toString();
+                let dNameStr = (o.deliveryDetails && o.deliveryDetails.name) ? o.deliveryDetails.name.toString().toLowerCase() : '';
+                return brandStr.includes(v) || modelStr.includes(v) || idStr === v || dNameStr.includes(v);
+            }); 
+            
+            if(fd || td) { 
+                f = f.filter(o => { 
+                    if(!o.deliveryDetails || !o.deliveryDetails.timestamp) return false; 
+                    const od = new Date(o.deliveryDetails.timestamp); od.setHours(0,0,0,0); 
+                    let p = true; 
+                    if(fd) { const fdd = new Date(fd); fdd.setHours(0,0,0,0); if(od < fdd) p = false; } 
+                    if(td) { const tdd = new Date(td); tdd.setHours(0,0,0,0); if(od > tdd) p = false; } 
+                    return p; 
+                }); 
+            } 
+            
+            document.getElementById('badge-delivered-count').innerText = orders.filter(o => o.status === 'DELIVERED' || o.status === 'REPLACED').length; 
+            const c = document.getElementById('delivered-list-container'); 
+            c.innerHTML = f.map(o => `<div onclick="openDeliveredViewModal(${o.id})" class="bg-white rounded-2xl p-5 shadow-sm border ${o.status==='REPLACED'?'border-amber-200':'border-emerald-100'} flex flex-col justify-between cursor-pointer hover:shadow-md transition-all group"><div class="flex justify-between items-start mb-2"><span class="text-white text-xs px-2.5 py-1 rounded-lg font-bold ${o.status==='REPLACED'?'bg-amber-600':'bg-gray-800'}"><i class="fa-solid ${o.status==='REPLACED'?'fa-right-left':'fa-check'} ml-1"></i>${o.statusText}</span><span class="${o.status==='REPLACED'?'bg-amber-600':'bg-emerald-600'} text-white w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-sm">${o.id}</span></div><div class="text-right text-gray-800 font-extrabold text-base mt-1">${o.brand || ''} ${o.model || ''}</div><div class="text-right text-[11px] text-gray-500 mt-1">👤 المستلم: <b class="text-gray-700">${o.deliveryDetails?.name || 'غير محدد'}</b></div></div>`).join(''); 
+            if (f.length === 0) {
+                c.innerHTML = '<div class="col-span-full bg-gray-50 border border-dashed border-gray-300 text-gray-500 rounded-2xl p-6 text-center text-sm font-bold">لا توجد سندات في هذا القسم حالياً.</div>';
+            }
+        }
+        
+        function openDeliveredViewModal(id) { const o = orders.find(x => x.id.toString() === id.toString()); if(!o) return; document.getElementById('view-del-order-id').value = o.id; document.getElementById('delivered-info-content').innerHTML = `<div class="flex justify-between border-b pb-2"><span>🏷️ التذكرة: <b class="text-primary font-mono">#${o.id}</b></span><span class="text-emerald-700"><i class="fa-solid fa-check-double ml-1"></i>مغلقة</span></div><div>📱 الصنف: <b>${o.brand || ''} ${o.model || ''}</b></div><div>🛠️ المهندس: <b>${o.assignedTech || ''}</b></div><div class="border-t pt-2 mt-2">🏢 الجهة المستلمة: <b>${o.deliveryDetails?.org||''}</b></div><div>👤 الشخص المستلم: <b>${o.deliveryDetails?.name||''}</b></div><div>📅 التاريخ: <b><span dir="ltr">${o.deliveryDetails?.dateStr||''}</span></b></div>`; openModal('modal-view-delivered'); }
+
+        function openUpdateOrderModal(id) { 
+            const o = orders.find(x => x.id.toString() === id.toString()); if(!o)return; 
+            document.getElementById('upd-order-id').value=o.id; 
+            
+            document.getElementById('upd-device-info').innerHTML=`
+                <div class="grid grid-cols-2 gap-2 text-sm text-right mb-3">
+                    <div class="bg-blue-50 p-2 rounded border border-blue-200">📱 <b>الجهاز:</b> ${o.brand || ''} ${o.model || ''}</div>
+                    <div class="bg-gray-50 p-2 rounded border border-gray-200" dir="ltr">🔢 <b>SN:</b> ${o.serial || 'لا يوجد'}</div>
+                    <div class="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-200">🏢 <b>الجهة/المؤسسة:</b> ${o.org || ''}</div>
+                    <div class="col-span-2 bg-red-50 p-2 rounded border border-red-200 text-red-700">⚠️ <b>العطل:</b> ${o.faults || ''}</div>
+                </div>`; 
+                
+            const b = document.getElementById('upd-assigned-badge'); 
+            if(o.assignedTech) b.innerHTML=`<span class="bg-indigo-50 border border-indigo-200 text-indigo-800 px-3 py-1 rounded-xl text-xs font-extrabold flex justify-between"><span>🛠️ المسؤول: ${o.assignedTech}</span></span>`; else b.innerHTML=`<span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-xl text-xs font-extrabold block text-center">✨ جديد (غير مستلم)</span>`; 
+            
+            const delBtn = document.getElementById('btn-delete-order');
+            if(loggedUser.role === 'مدير نظام' || loggedUser.role === 'موظف استقبال') { delBtn.classList.remove('hidden'); } else { delBtn.classList.add('hidden'); }
+
+            if(loggedUser.role==='مهندس صيانة' && !o.assignedTech){ 
+                document.getElementById('claim-device-box').classList.remove('hidden'); document.getElementById('status-control-box').classList.add('hidden'); 
+            } else{ 
+                document.getElementById('claim-device-box').classList.add('hidden'); 
+                document.getElementById('status-control-box').classList.remove('hidden'); 
+                document.getElementById('upd-status-select').value=o.status; 
+                document.getElementById('upd-notes').value=o.notes||''; 
+                
+                const dBtn = document.getElementById('btn-open-delivery'); 
+                const repBtn = document.getElementById('btn-open-replace'); 
+                const sBtns = document.getElementById('default-save-btns'); 
+                
+                dBtn.classList.add('hidden'); repBtn.classList.add('hidden'); sBtns.classList.add('hidden');
+                
+                if(loggedUser.role === 'موظف استقبال' || loggedUser.role === 'مدير نظام'){ 
+                    if(o.status === 'READY') { dBtn.classList.remove('hidden'); }
+                    else if (o.status === 'DAMAGED') { repBtn.classList.remove('hidden'); }
+                    else { sBtns.classList.remove('hidden'); }
+                } else { 
+                    sBtns.classList.remove('hidden'); 
+                } 
+            } 
+            openModal('modal-update-order'); 
+        }
+
+        function renderUsers() { document.getElementById('users-list-container').innerHTML = users.map(u => { let badge = u.role === 'مدير نظام' ? 'bg-amber-100 text-amber-800' : (u.role === 'مهندس صيانة' ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800'); return `<div class="bg-gray-50 border p-3 rounded-xl flex justify-between items-center"><div><div class="font-bold text-sm text-gray-800">${u.name} <span class="${badge} text-[10px] px-2 py-0.5 rounded ml-1 font-bold">${u.role}</span></div></div>${u.username !== 'admin' ? `<button onclick="users=users.filter(i=>i.id!=${u.id});saveState();pushSettingsToCloud();renderUsers();" class="text-red-500 text-xs font-bold"><i class="fa-solid fa-trash ml-1"></i>حذف</button>` : '<span class="text-[10px] text-gray-400">أساسي</span>'}</div>`; }).join(''); }
+        function saveNewUser(e) { e.preventDefault(); const newId=users.length>0?Math.max(...users.map(u=>u.id))+1:1; users.push({id:newId,name:document.getElementById('new-user-name').value,username:document.getElementById('new-user-username').value.trim(),pin:document.getElementById('new-user-pin').value.trim(),role:document.getElementById('new-user-role').value}); saveState(); pushSettingsToCloud(); renderUsers(); e.target.reset(); }
+        function renderCustomersSuppliers() { 
+            const container = document.getElementById('cs-list-container');
+            if (!container) return;
+
+            container.innerHTML = (csList || []).map(cs => `
+                <div class="bg-gray-50 border p-3 rounded-xl flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-sm text-gray-800">${cs.name} <span class="${cs.type === 'مورد قطع' ? 'bg-purple-100 text-purple-800' : 'bg-sky-100 text-sky-800'} text-[10px] px-2 py-0.5 rounded ml-1 font-bold">${cs.type}</span></div>
+                        <div class="text-xs text-gray-500">هاتف: <b class="dir-ltr">${cs.phone}</b></div>
+                    </div>
+                    <button onclick="csList=csList.filter(c=>c.id!=${cs.id});saveState();pushSettingsToCloud();renderCustomersSuppliers();refreshOrgSelectOptions();" class="text-red-500 text-xs font-bold"><i class="fa-solid fa-trash ml-1"></i>حذف</button>
+                </div>
+            `).join('');
+
+            refreshOrgSelectOptions();
+        }
+        function saveNewCustomerSupplier(e) { 
+            e.preventDefault();
+            const newId=csList.length>0?Math.max(...csList.map(c=>c.id))+1:1;
+            const newItem = {id:newId,name:document.getElementById('cs-name').value.trim(),phone:document.getElementById('cs-phone').value.trim(),type:document.getElementById('cs-type').value};
+            if (!newItem.name || !newItem.phone) return;
+            csList.push(newItem);
+            saveState();
+            pushSettingsToCloud();
+            renderCustomersSuppliers();
+            refreshOrgSelectOptions();
+            e.target.reset();
+        }
+        function renderBrandsSettings() { const container = document.getElementById('brands-list-container'); if(container) { container.innerHTML = brandsList.map((b, idx) => `<div class="bg-gray-50 border px-3 py-2 rounded-xl flex justify-between items-center text-xs font-bold text-gray-700"><span>📱 ${b}</span>${brandsList.length > 1 ? `<button onclick="brandsList.splice(${idx},1);saveState();pushSettingsToCloud();renderBrandsSettings();" class="text-red-500 hover:text-red-700 font-extrabold"><i class="fa-solid fa-trash ml-1"></i>حذف</button>` : ''}</div>`).join(''); } }
+        function addNewBrand(e) { e.preventDefault(); const input = document.getElementById('new-brand-input'); const val = input.value.trim(); if(val && !brandsList.includes(val)) { brandsList.push(val); saveState(); pushSettingsToCloud(); renderBrandsSettings(); input.value = ''; alert(`تم إضافة الماركة (${val}) بنجاح!`); } }
+        function renderAccSettings() { 
+            const container = document.getElementById('acc-list-container');
+            if(!container) return;
+
+            if(!accTypesList || accTypesList.length === 0) {
+                container.innerHTML = '<div class="bg-amber-50 border border-amber-200 text-amber-700 p-3 rounded-xl text-xs font-bold text-center">لا توجد أنواع توابع مسجلة حالياً.</div>';
+                refreshAccessorySelectOptions();
+                return;
+            }
+
+            container.innerHTML = accTypesList.map((a, idx) => `
+                <div class="bg-gray-50 border px-3 py-2 rounded-xl flex justify-between items-center text-xs font-bold text-gray-700">
+                    <span>📦 ${a}</span>
+                    <button onclick="accTypesList.splice(${idx},1); saveState(); pushSettingsToCloud(); renderAccSettings(); refreshAccessorySelectOptions();" class="text-red-500 hover:text-red-700 font-extrabold">
+                        <i class="fa-solid fa-trash ml-1"></i>حذف
+                    </button>
+                </div>
+            `).join('');
+
+            refreshAccessorySelectOptions();
+        }
+
+        function addNewAccType(e) { 
+            e.preventDefault();
+            const input = document.getElementById('new-acc-input');
+            const val = input.value.trim();
+            if(!val) return;
+
+            if(accTypesList.includes(val)) {
+                alert(`هذا النوع موجود بالفعل: (${val})`);
+                return;
+            }
+
+            accTypesList.push(val);
+            saveState();
+            pushSettingsToCloud();
+            renderAccSettings();
+            input.value = '';
+            alert(`تم إضافة النوع (${val}) بنجاح!`);
+        }
+
+        function renderTechnicians() { 
+            const searchInput = document.getElementById('search-tech');
+            const v = searchInput ? (searchInput.value || '').toString().toLowerCase().trim() : ''; 
+            
+            let techUsers = users.filter(u => u.role === 'مهندس صيانة' && (u.name || '').toString().toLowerCase().includes(v));
+            
+            document.getElementById('technicians-list-container').innerHTML = techUsers.map(u => `
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-gray-800 text-base">${u.name}</h4>
+                        <div class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold inline-block">مهندس صيانة</div>
+                    </div>
+                    <div class="bg-sky-50 text-primary w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </div>
+                </div>
+                ${(loggedUser && (loggedUser.role === 'مدير نظام' || loggedUser.role === 'موظف استقبال')) ? `
+                <div class="border-t pt-3 mt-3 space-y-3">
+                    <div class="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border">
+                        <div class="w-full">
+                            <span class="text-[10px] font-bold text-gray-500 block mb-1">من تاريخ:</span>
+                            <input type="date" id="tech-from-${u.id}" class="border rounded-lg px-2 py-1 text-xs font-bold w-full focus:outline-none">
+                        </div>
+                        <div class="w-full">
+                            <span class="text-[10px] font-bold text-gray-500 block mb-1">إلى تاريخ:</span>
+                            <input type="date" id="tech-to-${u.id}" class="border rounded-lg px-2 py-1 text-xs font-bold w-full focus:outline-none">
+                        </div>
+                    </div>
+                    <button onclick="generateTechReport('${u.name}', '${u.id}')" class="w-full bg-gray-900 hover:bg-black text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all">
+                        <i class="fa-solid fa-file-pdf"></i> استخراج التقرير (A4)
+                    </button>
+                </div>` : ''}
+            </div>`).join(''); 
+        }
+
+        // --- الدالة الجديدة الخاصة بالتقارير المجمعة ---
+        function generateGeneralReport(reportType) { 
+            let fromDate = document.getElementById('general-from').value;
+            let toDate = document.getElementById('general-to').value;
+
+            let filteredOrders = orders; 
+
+            if (fromDate || toDate) {
+                filteredOrders = filteredOrders.filter(o => {
+                    let ts = o.timestamp;
+                    if ((reportType === 'DELIVERED' || reportType === 'REPLACED') && o.deliveryDetails && o.deliveryDetails.timestamp) {
+                        ts = o.deliveryDetails.timestamp;
+                    }
+                    if(!ts) return true;
+                    const od = new Date(ts); od.setHours(0,0,0,0);
+                    let p = true;
+                    if(fromDate) { const fdd = new Date(fromDate); fdd.setHours(0,0,0,0); if(od < fdd) p = false; }
+                    if(toDate) { const tdd = new Date(toDate); tdd.setHours(0,0,0,0); if(od > tdd) p = false; }
+                    return p;
+                });
+            }
+
+            let reportTitle = "";
+            let themeColor = "";
+            
+            if (reportType === 'RECEIVED') {
+                reportTitle = "تقرير الأجهزة المستلمة (جميع المدخلات)";
+                themeColor = "#2563eb"; 
+            } else if (reportType === 'MAINTAINED') {
+                filteredOrders = filteredOrders.filter(o => o.status === 'READY' || o.status === 'DELIVERED');
+                reportTitle = "تقرير الأجهزة التي تم صيانتها (جاهزة ومسلمة)";
+                themeColor = "#059669"; 
+            } else if (reportType === 'DELIVERED') {
+                filteredOrders = filteredOrders.filter(o => o.status === 'DELIVERED');
+                reportTitle = "تقرير الأجهزة التي تم تسليمها للجهات";
+                themeColor = "#1f2937"; 
+            } else if (reportType === 'REPLACED') {
+                filteredOrders = filteredOrders.filter(o => o.status === 'REPLACED');
+                reportTitle = "تقرير الأجهزة التي تم صرف بدل تالف لها";
+                themeColor = "#d97706"; 
+            }
+
+            const periodText = (fromDate || toDate) ? `الفترة: ${fromDate || 'بداية العمل'} إلى ${toDate || 'اليوم'}` : 'جميع الفترات';
+            const totalItems = filteredOrders.length;
+
+            let htmlContent = `<style>.a4-page{width:210mm;min-height:297mm;padding:15mm;box-sizing:border-box;background:white;font-family:'Cairo',sans-serif;} .hd-wrap{background:${themeColor};color:white;text-align:center;padding:15px;border-radius:10px 10px 0 0;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact;} .hd-wrap h2{margin:0;font-size:26px;font-weight:900;} .stats{display:flex;justify-content:space-between;background:#f8fafc;padding:15px;border-radius:8px;border:2px solid #e2e8f0;margin-bottom:20px;font-weight:900;font-size:15px;} .tb-a4{width:100%;border-collapse:collapse;font-size:12px;} .tb-a4 th, .tb-a4 td{border:1px solid #cbd5e1;padding:10px;text-align:right;} .tb-a4 th{background:${themeColor};color:white;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;}</style>
+            <div class="a4-page" dir="rtl">
+                <div class="hd-wrap">
+                    <h2>${reportTitle}</h2>
+                    <p style="margin:5px 0 0; font-size:12px;">نظام إدارة الصيانة المؤسسي المعتمد</p>
+                    <p style="margin:5px 0 0; font-size:13px; font-weight:bold; color:#f8fafc;">${periodText}</p>
+                </div>
+                <div class="stats">
+                    <div>إجمالي الأجهزة: <span style="color:${themeColor};">${totalItems} جهاز</span></div>
+                </div>
+                <table class="tb-a4">
+                    <thead>
+                        <tr>
+                            <th>رقم التذكرة</th>
+                            <th>الجهاز</th>
+                            <th>السيريال</th>
+                            <th>الجهة</th>
+                            ${(reportType === 'DELIVERED' || reportType === 'REPLACED') ? '<th>المستلم</th><th>تاريخ الإجراء</th>' : '<th>المهندس</th><th>الحالة</th>'}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${totalItems > 0 ? filteredOrders.map(o => `
+                        <tr>
+                            <td style="font-weight:bold;">#${o.id}</td>
+                            <td>${o.brand || ''} ${o.model || ''}</td>
+                            <td dir="ltr" style="color:#475569;">${o.serial||'بدون'}</td>
+                            <td>${o.org||'فردي'}</td>
+                            ${(reportType === 'DELIVERED' || reportType === 'REPLACED') ? 
+                                `<td>${o.deliveryDetails?.name || '-'}</td><td dir="ltr">${o.deliveryDetails?.dateStr?.split(' - ')[0] || '-'}</td>` : 
+                                `<td>${o.assignedTech || 'غير محدد'}</td><td style="font-weight:bold;">${o.statusText}</td>`}
+                        </tr>`).join('') : `<tr><td colspan="6" style="text-align:center; padding:15px; font-weight:bold;">لا توجد سجلات مطابقة في هذه الفترة</td></tr>`}
+                    </tbody>
+                </table>
+            </div>`;
+
+            triggerExportModal(htmlContent, 210, 297, `تقرير_${reportType}`, 'A4'); 
+        }
+
+        function generateTechReport(techName, userId) { 
+            let fromDate = document.getElementById(`tech-from-${userId}`) ? document.getElementById(`tech-from-${userId}`).value : '';
+            let toDate = document.getElementById(`tech-to-${userId}`) ? document.getElementById(`tech-to-${userId}`).value : '';
+
+            let techOrders = orders.filter(o => o.assignedTech === techName); 
+
+            if (fromDate || toDate) {
+                techOrders = techOrders.filter(o => {
+                    if(!o.timestamp) return true;
+                    const od = new Date(o.timestamp); od.setHours(0,0,0,0);
+                    let p = true;
+                    if(fromDate) { const fdd = new Date(fromDate); fdd.setHours(0,0,0,0); if(od < fdd) p = false; }
+                    if(toDate) { const tdd = new Date(toDate); tdd.setHours(0,0,0,0); if(od > tdd) p = false; }
+                    return p;
+                });
+            }
+
+            const sumReady = techOrders.filter(o => o.status === 'READY' || o.status === 'DELIVERED').length; 
+            const periodText = (fromDate || toDate) ? `الفترة: ${fromDate || 'بداية العمل'} إلى ${toDate || 'حتى اليوم'}` : 'جميع الفترات';
+
+            let htmlContent = `<style>.a4-page{width:210mm;min-height:297mm;padding:15mm;box-sizing:border-box;background:white;} .hd-wrap{background:linear-gradient(to right, #1e293b, #334155);color:white;text-align:center;padding:15px;border-radius:10px 10px 0 0;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact;} .hd-wrap h2{margin:0;font-size:26px;font-weight:900;} .stats{display:flex;justify-content:space-between;background:#f8fafc;padding:15px;border-radius:8px;border:2px solid #e2e8f0;margin-bottom:20px;font-weight:900;font-size:15px;} .tb-a4{width:100%;border-collapse:collapse;font-size:12px;} .tb-a4 th, .tb-a4 td{border:1px solid #cbd5e1;padding:10px;text-align:right;} .tb-a4 th{background:#0288D1;color:white;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;}</style><div class="a4-page" dir="rtl"><div class="hd-wrap"><h2>تقرير أداء مهندس الصيانة</h2><p style="margin:5px 0 0; font-size:12px;">نظام إدارة الصيانة المؤسسي المعتمد</p><p style="margin:5px 0 0; font-size:13px; color:#93c5fd; font-weight:bold;">${periodText}</p></div><div class="stats"><div>👨‍🔧 المهندس: <span style="color:#0288D1;">${techName}</span></div><div>إجمالي المستلم: <span style="color:#0f172a;">${techOrders.length}</span></div><div style="color:#059669;">تم الإنجاز: ${sumReady}</div></div><table class="tb-a4"><thead><tr><th>رقم</th><th>الجهاز</th><th>السيريال</th><th>الجهة</th><th>العطل</th><th>الحالة</th></tr></thead><tbody>${techOrders.length > 0 ? techOrders.map(o => `<tr><td style="font-weight:bold;">#${o.id}</td><td>${o.brand || ''} ${o.model || ''}</td><td dir="ltr" style="color:#475569;">${o.serial||'بدون'}</td><td>${o.org||'فردي'}</td><td>${o.faults || ''}</td><td style="font-weight:bold; color:${o.status==='DELIVERED'?'#000':(o.status==='READY'?'#059669':'#0288D1')};">${o.statusText}</td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;">لا توجد سجلات صيانة في هذه الفترة</td></tr>`}</tbody></table></div>`; triggerExportModal(htmlContent, 210, 297, `تقرير_أداء_${techName.replace(/\s+/g, '_')}`, 'A4'); 
+        }
+        
+        function renderCharts() { if(loggedUser && loggedUser.role !== 'مدير نظام') return; const fd = document.getElementById('chart-date-from').value; const td = document.getElementById('chart-date-to').value; let filteredOrders = orders; if(fd || td) { filteredOrders = orders.filter(o => { if(!o.timestamp) return false; const od = new Date(o.timestamp); od.setHours(0,0,0,0); let p = true; if(fd) { const fdd = new Date(fd); fdd.setHours(0,0,0,0); if(od < fdd) p = false; } if(td) { const tdd = new Date(td); tdd.setHours(0,0,0,0); if(od > tdd) p = false; } return p; }); } const brandCounts = {}; filteredOrders.forEach(o => { let b = o.brand || 'أخرى'; brandCounts[b] = (brandCounts[b] || 0) + 1; }); const ctx = document.getElementById('devicesChart'); if(!ctx) return; if(dashboardChart) dashboardChart.destroy(); dashboardChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: Object.keys(brandCounts).length ? Object.keys(brandCounts) : ['لا توجد بيانات'], datasets: [{ label: 'عدد الأجهزة المصانة حسب الماركة', data: Object.keys(brandCounts).length ? Object.values(brandCounts) : [0], backgroundColor: '#0288D1', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } }); }
+        function renderDashboard() { const container = document.getElementById('kpi-grid'); if(container) { const counts = {
+                NEW: orders.filter(o => o.status === 'NEW' || !o.status).length,
+                IN_PROGRESS: orders.filter(o => o.status === 'IN_PROGRESS').length,
+                WAITING_PART: orders.filter(o => o.status === 'WAITING_PART').length,
+                READY: orders.filter(o => o.status === 'READY').length,
+                DAMAGED: orders.filter(o => o.status === 'DAMAGED').length,
+                DELIVERED: orders.filter(o => o.status === 'DELIVERED').length,
+                REPLACED: orders.filter(o => o.status === 'REPLACED').length
+            };
+            const cards = [
+                { label: 'جديد', value: counts.NEW, color: 'bg-sky-600', icon: 'fa-star' },
+                { label: 'قيد الإصلاح', value: counts.IN_PROGRESS, color: 'bg-amber-500', icon: 'fa-screwdriver-wrench' },
+                { label: 'بانتظار قطعة', value: counts.WAITING_PART, color: 'bg-orange-500', icon: 'fa-hourglass-half' },
+                { label: 'جاهز للتسليم', value: counts.READY, color: 'bg-emerald-600', icon: 'fa-box-open' },
+                { label: 'تالف', value: counts.DAMAGED, color: 'bg-red-500', icon: 'fa-circle-xmark' },
+                { label: 'تم التسليم', value: counts.DELIVERED, color: 'bg-indigo-600', icon: 'fa-check-double' },
+                { label: 'تم صرف بديل', value: counts.REPLACED, color: 'bg-violet-600', icon: 'fa-right-left' }
+            ];
+            container.innerHTML = cards.map(item => `
+                <div class="${item.color} text-white p-4 rounded-2xl shadow-md h-28 flex flex-col justify-between">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold">${item.label}</span>
+                        <i class="fa-solid ${item.icon} text-lg opacity-90"></i>
+                    </div>
+                    <div class="text-3xl font-extrabold">${item.value}</div>
+                </div>
+            `).join('');
+        } setTimeout(renderCharts, 100); }
+        function openScannerModal() { openModal('modal-scanner'); html5QrCodeScanner = new Html5QrcodeScanner("qr-reader", {fps:10, qrbox:{width:220,height:100}}, false); html5QrCodeScanner.render(onScanSuccess, ()=>{}); }
+        function onScanSuccess(t) { let id = t.replace(/[^0-9]/g, ''); if(id){ closeScannerModal(); const o = orders.find(x => x.id.toString() === id.toString()); if(o){ if(o.status === 'DELIVERED' || o.status === 'REPLACED') openDeliveredViewModal(o.id); else openUpdateOrderModal(o.id); }else alert('⚠️ لم يتم العثور على تذكرة.'); } }
+        function closeScannerModal() { if(html5QrCodeScanner){ html5QrCodeScanner.clear(); html5QrCodeScanner=null; } closeModal('modal-scanner'); }
+        
+        function updateBadges() { document.getElementById('badge-orders-count').innerText = orders.filter(o=>o.status!=='DELIVERED' && o.status!=='REPLACED').length; document.getElementById('badge-delivered-count').innerText = orders.filter(o=>o.status==='DELIVERED' || o.status==='REPLACED').length; }
+        function renderAll() { updateBadges(); renderDashboard(); renderOrders(); renderDelivered(); renderTechnicians(); }
+        
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('main-sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const toggleBtn = document.getElementById('mobile-menu-toggle');
+            if (!sidebar || !backdrop || window.innerWidth >= 768) return;
+
+            const clickedSidebar = sidebar.contains(event.target);
+            const clickedToggle = toggleBtn && toggleBtn.contains(event.target);
+            const clickedBackdrop = event.target === backdrop;
+
+            if (sidebar.classList.contains('open') && !clickedSidebar && !clickedToggle && !clickedBackdrop) {
+                closeSidebar();
+            }
+
+            if (clickedBackdrop) {
+                closeSidebar();
+            }
+        });
+
+        window.onload = () => { 
+            checkAuth(); 
+            if(loggedUser) {
+                document.getElementById('global-loader').classList.remove('hidden');
+                fetchFromCloud(false);
+                setInterval(() => { if(loggedUser) fetchFromCloud(true); }, 10000);
+            }
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (backdrop) {
+                backdrop.addEventListener('click', closeSidebar);
+            }
+        };
+    </script>
+</body>
+</html>
+
