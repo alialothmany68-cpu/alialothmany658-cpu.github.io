@@ -646,6 +646,7 @@
         let currentDeliveryAction = 'DELIVER'; 
         let cloudSyncTimer = null;
         let cloudSyncInFlight = false;
+        let hasCloudDataLoaded = false;
 
         function startCloudSyncLoop() {
             if (cloudSyncTimer) return;
@@ -743,39 +744,43 @@
                     signal: controller.signal
                 });
                 const data = await res.json();
+                const payload = data && typeof data === 'object' ? data : {};
 
-                if (data && data.orders) {
-                    const mergedOrders = mergeCloudState(orders, data.orders || []);
+                if (payload.orders !== undefined) {
+                    const mergedOrders = mergeCloudState(orders, Array.isArray(payload.orders) ? payload.orders : []);
                     orders = mergedOrders.filter(o => o && o.id && o.id.toString().trim() !== "");
                 }
 
-                const cloudUsers = getUsersFromSheetData(data);
+                const cloudUsers = getUsersFromSheetData(payload);
                 if (cloudUsers.length > 0) {
                     users = cloudUsers;
                 }
-                if(data && data.cs) csList = Array.isArray(data.cs) ? data.cs : [];
-                if(data && data.brands && data.brands.length > 0) brandsList = data.brands;
-                if(data && data.accTypes && data.accTypes.length > 0) accTypesList = data.accTypes;
-                if (data && Array.isArray(data.auditLog)) {
-                    auditLog = mergeAuditLogs(auditLog, data.auditLog);
+                if (payload.cs !== undefined) csList = Array.isArray(payload.cs) ? payload.cs : [];
+                if (payload.brands !== undefined && Array.isArray(payload.brands) && payload.brands.length > 0) brandsList = payload.brands;
+                if (payload.accTypes !== undefined && Array.isArray(payload.accTypes) && payload.accTypes.length > 0) accTypesList = payload.accTypes;
+                if (Array.isArray(payload.auditLog)) {
+                    auditLog = mergeAuditLogs(auditLog, payload.auditLog);
                 }
-                if (data && Array.isArray(data.activity)) {
-                    auditLog = mergeAuditLogs(auditLog, data.activity);
+                if (Array.isArray(payload.activity)) {
+                    auditLog = mergeAuditLogs(auditLog, payload.activity);
                 }
+                hasCloudDataLoaded = true;
                 
                 saveState();
                 renderAll();
                 if(syncIcon) { syncIcon.classList.remove('syncing', 'text-amber-300', 'text-red-400'); syncIcon.classList.add('text-white'); }
             } catch(e) { 
-                console.log("Offline or sync error", e); 
+                console.log("Offline or sync error", e);
                 setSyncError();
-                const fallback = loadLocalFallbacks();
-                orders = fallback.orders;
-                users = fallback.users;
-                brandsList = fallback.brands;
-                csList = fallback.cs;
-                accTypesList = fallback.accTypes;
-                auditLog = mergeAuditLogs([], fallback.auditLog || []);
+                if (!hasCloudDataLoaded) {
+                    const fallback = loadLocalFallbacks();
+                    orders = fallback.orders;
+                    users = fallback.users;
+                    brandsList = fallback.brands;
+                    csList = fallback.cs;
+                    accTypesList = fallback.accTypes;
+                    auditLog = mergeAuditLogs([], fallback.auditLog || []);
+                }
                 renderAll();
             } finally {
                 clearTimeout(timeoutId);
