@@ -156,6 +156,14 @@
         <p class="text-xs text-gray-500 mt-1 font-bold">يرجى الانتظار لحين جلب التحديثات من السحابة</p>
     </div>
 
+    <div id="manual-sync-modal" class="fixed inset-0 bg-black/45 z-[220] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 shadow-2xl w-full max-w-sm text-center">
+            <div id="manual-sync-spinner" class="spinner mx-auto mb-4"></div>
+            <div id="manual-sync-status" class="text-lg font-extrabold text-primary">جارٍ مزامنة البيانات...</div>
+            <p class="text-xs text-gray-500 mt-2 font-bold">يتم التحقق من آخر تحديثات ورقة Excel الآن</p>
+        </div>
+    </div>
+
     <div id="login-screen" class="fixed inset-0 bg-gradient-to-br from-primaryDark via-primary to-sky-400 z-[100] flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-8 shadow-2xl w-full max-w-md text-center relative overflow-hidden">
             <div class="bg-sky-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner text-primary text-3xl"><i class="fa-solid fa-user-shield"></i></div>
@@ -201,7 +209,7 @@
                 <h2 id="page-title" class="text-xl font-bold text-gray-800">الداشبورد والتحليلات</h2>
             </div>
             <div id="action-header-btn" class="flex items-center gap-3">
-                <button type="button" onclick="fetchFromCloud(false)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm border border-slate-200 transition-all"><i class="fa-solid fa-rotate-right"></i><span class="hidden sm:inline">تحديث يدوي</span></button>
+                <button type="button" onclick="triggerManualSync()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm border border-slate-200 transition-all"><i class="fa-solid fa-rotate-right"></i><span class="hidden sm:inline">تحديث يدوي</span></button>
                 <button id="add-order-header-btn" onclick="openAddOrderModal()" class="bg-primary hover:bg-primaryDark text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-plus"></i><span>إستلام وتصدير ملصق</span></button>
             </div>
         </header>
@@ -230,6 +238,7 @@
                     </div>
                     <div id="tabs-container" class="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0"></div>
                 </div>
+                <div id="role-activity-panel" class="hidden"></div>
                 <div id="orders-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
             </section>
 
@@ -248,7 +257,7 @@
             </section>
 
             <section id="view-technicians" class="view-section hidden space-y-4">
-                <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+                <div id="general-report-panel" class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
                     <div class="flex items-center justify-between gap-3 mb-4">
                         <h3 class="font-extrabold text-gray-700 flex items-center gap-2 text-sm md:text-base"><i class="fa-solid fa-print text-primary"></i> التقارير المجمعة للنظام</h3>
                     </div>
@@ -267,11 +276,12 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
                             <button onclick="generateGeneralReport('RECEIVED')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-inbox"></i> المستلمة</button>
                             <button onclick="generateGeneralReport('MAINTAINED')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-wrench"></i> المصانة</button>
                             <button onclick="generateGeneralReport('DELIVERED')" class="w-full bg-gray-800 hover:bg-black text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-box-open"></i> المسلمة</button>
                             <button onclick="generateGeneralReport('REPLACED')" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-right-left"></i> بدل تالف</button>
+                            <button onclick="generateDailyAggregateReport()" class="w-full bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all"><i class="fa-solid fa-calendar-day"></i> يومي مجمع</button>
                         </div>
                     </div>
                 </div>
@@ -288,6 +298,7 @@
                     <div onclick="openModal('modal-manage-customers')" class="bg-purple-600 hover:bg-purple-700 text-white p-6 rounded-3xl shadow-md cursor-pointer flex flex-col items-center justify-center text-center gap-3 transition-transform hover:-translate-y-1 h-40"><i class="fa-solid fa-users-between-lines text-4xl"></i><span class="font-bold text-lg">الموردون والجهات</span></div>
                     <div onclick="openModal('modal-list-settings')" class="bg-indigo-600 hover:bg-indigo-700 text-white p-6 rounded-3xl shadow-md cursor-pointer flex flex-col items-center justify-center text-center gap-3 transition-transform hover:-translate-y-1 h-40"><i class="fa-solid fa-list-check text-4xl"></i><span class="font-bold text-lg">إعدادات الماركات</span></div>
                     <div onclick="openModal('modal-acc-settings')" class="bg-amber-600 hover:bg-amber-700 text-white p-6 rounded-3xl shadow-md cursor-pointer flex flex-col items-center justify-center text-center gap-3 transition-transform hover:-translate-y-1 h-40"><i class="fa-solid fa-boxes-stacked text-4xl"></i><span class="font-bold text-lg">إعدادات التوابع</span></div>
+                    <div onclick="deleteAllOrders()" class="bg-red-600 hover:bg-red-700 text-white p-6 rounded-3xl shadow-md cursor-pointer flex flex-col items-center justify-center text-center gap-3 transition-transform hover:-translate-y-1 h-40 col-span-2 md:col-span-3"><i class="fa-solid fa-trash-can text-4xl"></i><span class="font-bold text-lg">حذف جميع التذاكر</span></div>
                 </div>
             </section>
         </div>
@@ -334,6 +345,11 @@
                         <div><label class="block text-xs font-bold text-amber-900 mb-1">نوع التابع</label><select id="acc-type-select" class="w-full border rounded-xl px-3 py-2 text-sm font-extrabold text-amber-900 bg-white"></select></div>
                         <div><label class="block text-xs font-extrabold text-red-600 mb-1">العدد (للتفكيك)</label><input type="number" id="acc-qty" min="1" max="50" value="1" class="w-full border-2 border-red-400 rounded-xl px-3 py-2 text-sm font-extrabold text-center text-red-600 bg-white"></div>
                     </div>
+                </div>
+
+                <div class="pt-2">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">تاريخ الاستلام</label>
+                    <input type="date" id="ord-date" class="w-full border rounded-xl px-3 py-2 text-sm focus:border-primary font-bold">
                 </div>
                 
                 <div class="border-t pt-3 space-y-3">
@@ -415,7 +431,7 @@
                         <div><label class="block text-xs font-extrabold text-gray-700 mb-1">الجهة المستلمة</label><select id="del-org-input" required class="w-full border-2 border-gray-300 rounded-xl px-3 py-2 text-xs font-bold focus:border-primary bg-white"></select></div>
                         <div><label class="block text-xs font-extrabold text-gray-700 mb-1">اسم المستلم</label><input type="text" id="del-name-input" required class="w-full border-2 border-gray-300 rounded-xl px-3 py-2 text-xs font-bold focus:border-primary"></div>
                     </div>
-                    <div><label class="block text-xs font-extrabold text-gray-700 mb-1">التاريخ</label><input type="text" id="del-date-input" readonly class="w-full border bg-gray-100 rounded-xl px-3 py-2 text-xs font-mono font-bold text-center"></div>
+                    <div><label class="block text-xs font-extrabold text-gray-700 mb-1">التاريخ</label><input type="date" id="del-date-input" class="w-full border rounded-xl px-3 py-2 text-xs font-bold focus:border-primary"></div>
                 </div>
                 <div class="pt-3">
                     <button type="button" onclick="confirmAndPrintDeliveryA5()" id="delivery-submit-btn" class="w-full bg-emerald-600 text-white font-extrabold py-3 rounded-xl shadow-lg text-sm flex justify-center items-center gap-2"><i class="fa-solid fa-share-from-square"></i> تأكيد وتصدير السند</button>
@@ -426,7 +442,17 @@
 
     <div id="modal-view-delivered" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative text-right"><button onclick="closeModal('modal-view-delivered')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-extrabold text-lg text-gray-800 mb-4 border-b pb-2 flex items-center gap-2 text-emerald-700"><i class="fa-solid fa-box-open"></i> تذكرة مغلقة</h3><input type="hidden" id="view-del-order-id"><div id="delivered-info-content" class="space-y-3 mb-5 text-sm font-bold text-gray-700 bg-gray-50 p-4 rounded-xl border border-gray-200"></div><button type="button" onclick="reprintDeliveredA5()" class="w-full bg-gray-900 hover:bg-black text-white font-extrabold py-3 rounded-xl shadow-lg text-sm flex justify-center items-center gap-2"><i class="fa-solid fa-share-from-square"></i> إعادة تصدير السند (A5)</button></div></div>
 
+    <div id="modal-tech-orders" class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl relative text-right"><button onclick="closeModal('modal-tech-orders')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-extrabold text-lg text-gray-800 mb-4 border-b pb-2 flex items-center gap-2 text-primary"><i class="fa-solid fa-screwdriver-wrench"></i> الأجهزة المصححة للمهندس</h3><input type="hidden" id="tech-orders-name"><div id="tech-orders-list" class="space-y-3 max-h-[70vh] overflow-y-auto pr-1"></div></div></div>
+
     <div id="modal-scanner" class="fixed inset-0 bg-black/85 z-[70] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative text-center"><button onclick="closeScannerModal()" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-extrabold text-base mb-2 flex items-center justify-center gap-2 text-emerald-600"><i class="fa-solid fa-camera"></i> مسح باركود التذكرة</h3><div id="qr-reader" class="w-full bg-black rounded-2xl overflow-hidden border-2 border-emerald-500 min-h-[250px]"></div></div></div>
+
+    <div id="modal-all-activities" class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl w-full max-w-xl p-6 shadow-2xl relative text-right max-h-[80vh] overflow-y-auto">
+            <button onclick="closeModal('modal-all-activities')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-extrabold text-lg text-gray-800 mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-primary"></i> جميع النشاطات</h3>
+            <div id="all-activities-list" class="space-y-3"></div>
+        </div>
+    </div>
 
     <div id="modal-manage-users" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] flex flex-col"><button onclick="closeModal('modal-manage-users')" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-bold text-lg mb-4 border-b pb-2">إدارة المستخدمين</h3><form onsubmit="saveNewUser(event)" class="bg-gray-50 p-3 rounded-2xl mb-4 space-y-3 border"><div class="grid grid-cols-2 gap-2"><input type="text" id="new-user-name" required placeholder="الاسم" class="border rounded-xl px-3 py-1.5 text-xs font-bold"><input type="text" id="new-user-username" required placeholder="اسم المستخدم" class="border rounded-xl px-3 py-1.5 text-xs font-bold text-left" dir="ltr"></div><div class="grid grid-cols-2 gap-2"><input type="password" id="new-user-pin" required placeholder="الرمز (PIN)" class="border rounded-xl px-3 py-1.5 text-xs font-bold text-left" dir="ltr"><select id="new-user-role" class="border-2 border-teal-200 rounded-xl px-3 py-1.5 text-xs font-extrabold text-teal-900 bg-teal-50"><option value="موظف استقبال">🖥️ موظف استقبال</option><option value="مهندس صيانة">🛠️ مهندس صيانة</option><option value="مدير نظام">👑 مدير نظام</option></select></div><button type="submit" class="w-full bg-teal-600 text-white font-bold py-2 rounded-xl text-xs">حفظ المستخدم</button></form><div class="flex-1 overflow-y-auto space-y-2 pr-1" id="users-list-container"></div></div></div>
     <div id="modal-manage-customers" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4"><div class="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] flex flex-col"><button onclick="closeModal('modal-manage-customers')" class="absolute top-4 left-4 text-gray-400 text-xl"><i class="fa-solid fa-xmark"></i></button><h3 class="font-bold text-lg mb-4 border-b pb-2">إدارة الجهات</h3><form onsubmit="saveNewCustomerSupplier(event)" class="bg-gray-50 p-3 rounded-2xl mb-4 space-y-3 border"><div class="grid grid-cols-2 gap-2"><input type="text" id="cs-name" required placeholder="الاسم" class="border rounded-xl px-3 py-1.5 text-xs"><input type="text" id="cs-phone" required placeholder="الهاتف" class="border rounded-xl px-3 py-1.5 text-xs text-left" dir="ltr"></div><div class="grid grid-cols-2 gap-2"><select id="cs-type" class="border rounded-xl px-3 py-1.5 text-xs font-bold"><option value="مورد قطع">🛒 مورد قطع غيار</option><option value="عميل">👤 عميل صيانة</option></select></div><button type="submit" class="w-full bg-purple-600 text-white font-bold py-2 rounded-xl text-xs">حفظ السجل</button></form><div class="flex-1 overflow-y-auto space-y-2 pr-1" id="cs-list-container"></div></div></div>
@@ -445,6 +471,89 @@
         const defaultBrands = ['آبل', 'سامسونج', 'شاومي'];
         const defaultCS = [{ id: 1, name: 'الجفينة', phone: '777', type: 'عميل' }];
         const defaultAccTypes = ['بطاريات', 'شاشات', 'لوحات أم', 'قطع تالفة'];
+        const SYNC_INTERVAL_MS = 5000;
+        const SYNC_REQUEST_TIMEOUT_MS = 5000;
+
+        function safeParse(value, fallback) {
+            if (value === null || value === undefined || value === '') return fallback;
+            try {
+                return JSON.parse(value);
+            } catch (err) {
+                return fallback;
+            }
+        }
+
+        function normalizeUserRecord(user, index = 0) {
+            if (!user || typeof user !== 'object') return null;
+
+            const rawName = (user.name ?? user.fullName ?? user['اسم'] ?? user['اسم_المستخدم'] ?? user['User Name'] ?? user['userName'] ?? user['UserName'] ?? user['username'] ?? '').toString().trim();
+            const rawUsername = (user.username ?? user.userName ?? user['اسم المستخدم'] ?? user['User Name'] ?? user['UserName'] ?? user['username'] ?? user.user ?? '').toString().trim();
+            const rawPin = (user.pin ?? user.PIN ?? user.password ?? user['رمز'] ?? user['PIN'] ?? user['Password'] ?? user.pwd ?? '').toString().trim();
+            const rawRole = (user.role ?? user['الدور'] ?? user['Role'] ?? user['نوع الحساب'] ?? user['accountType'] ?? '').toString().trim();
+            const rawId = user.id ?? user.userId ?? user.ID ?? user.uid ?? index + 1;
+
+            const name = rawName || rawUsername || `مستخدم ${index + 1}`;
+            const username = rawUsername || (name || `user${index + 1}`).replace(/\s+/g, '').toLowerCase();
+            const pin = rawPin || '123';
+            const role = rawRole || 'موظف استقبال';
+
+            return {
+                id: Number(rawId) || index + 1,
+                name: name,
+                username: username,
+                pin: pin,
+                role: role
+            };
+        }
+
+        function normalizeUsers(items) {
+            const source = Array.isArray(items) ? items : [];
+            const map = new Map();
+
+            source.forEach((user, index) => {
+                const normalized = normalizeUserRecord(user, index);
+                if (!normalized) return;
+                const key = `${normalized.id}-${normalized.username || normalized.name}`;
+                if (!map.has(key)) map.set(key, normalized);
+            });
+
+            return [...map.values()].sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+        }
+
+        function getUsersFromSheetData(rawData) {
+            if (!rawData || typeof rawData !== 'object') return [];
+            const candidates = [rawData.users, rawData.Users, rawData['Users'], rawData.userList, rawData.user_list];
+            for (const item of candidates) {
+                if (Array.isArray(item)) return normalizeUsers(item);
+            }
+            return normalizeUsers(rawData);
+        }
+
+        function normalizeArray(value, fallback) {
+            const parsed = safeParse(value, fallback);
+            return Array.isArray(parsed) ? parsed : fallback;
+        }
+
+        function loadLocalFallbacks() {
+            return {
+                orders: defaultOrders,
+                users: normalizeUsers(defaultUsers),
+                brands: defaultBrands,
+                cs: defaultCS,
+                accTypes: defaultAccTypes,
+                auditLog: normalizeArray(localStorage.getItem('sys_audit_log_v11'), [])
+            };
+        }
+
+        function getCloudSeedData() {
+            return {
+                orders: defaultOrders,
+                users: normalizeUsers(defaultUsers),
+                brands: defaultBrands,
+                cs: defaultCS,
+                accTypes: defaultAccTypes
+            };
+        }
         
         const STATUS_MAP = {
             'NEW': '✨ جديد',
@@ -456,16 +565,94 @@
             'DELIVERED': '📦 تم التسليم'
         };
 
-        let orders = JSON.parse(localStorage.getItem('sys_orders_v11_3')) || defaultOrders;
-        let users = JSON.parse(localStorage.getItem('sys_users_v11_3')) || defaultUsers;
-        let brandsList = JSON.parse(localStorage.getItem('sys_brands_v11_3')) || defaultBrands;
-        let csList = JSON.parse(localStorage.getItem('sys_cs_v11_3')) || defaultCS;
-        let accTypesList = JSON.parse(localStorage.getItem('sys_acc_types_v11_4')) || defaultAccTypes;
-        let loggedUser = JSON.parse(localStorage.getItem('sys_logged_user_v11_3')) || null;
+        const cloudSeed = getCloudSeedData();
+        let orders = cloudSeed.orders;
+        let users = cloudSeed.users;
+        let brandsList = cloudSeed.brands;
+        let csList = cloudSeed.cs;
+        let accTypesList = cloudSeed.accTypes;
+        let loggedUser = null;
+        let auditLog = [];
+
+        function restoreSavedUser() {
+            const saved = safeParse(localStorage.getItem('sys_logged_user_v11_3'), null);
+            if (!saved || !saved.username) return null;
+            const match = users.find(u => (u.username || '').toLowerCase() === String(saved.username || '').toLowerCase());
+            if (!match) {
+                localStorage.removeItem('sys_logged_user_v11_3');
+                return null;
+            }
+            return match;
+        }
+
+        function getAuditLog() {
+            try {
+                const raw = localStorage.getItem('sys_audit_log_v11');
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function normalizeAuditEntry(entry) {
+            if (!entry || typeof entry !== 'object') return null;
+            const time = entry.time || entry.timestamp || Date.now();
+            return {
+                id: entry.id || `${time}-${Math.random()}`,
+                time: new Date(time).toISOString(),
+                user: entry.user || 'النظام',
+                message: entry.message || 'تحديث جديد',
+                ...entry
+            };
+        }
+
+        function mergeAuditLogs(localLogs, cloudLogs) {
+            const map = new Map();
+            [...(Array.isArray(localLogs) ? localLogs : []), ...(Array.isArray(cloudLogs) ? cloudLogs : [])]
+                .forEach(entry => {
+                    const normalized = normalizeAuditEntry(entry);
+                    if (!normalized) return;
+                    const key = String(normalized.id || normalized.time || Math.random());
+                    if (!map.has(key)) map.set(key, normalized);
+                });
+            return [...map.values()].sort((a, b) => new Date(b.time || b.timestamp || 0) - new Date(a.time || a.timestamp || 0)).slice(0, 25);
+        }
+
+        function appendAuditEntry(message, details = {}) {
+            const item = {
+                id: Date.now() + Math.random(),
+                time: new Date().toISOString(),
+                user: loggedUser ? (loggedUser.name || loggedUser.username || 'النظام') : 'النظام',
+                message,
+                ...details
+            };
+            auditLog = mergeAuditLogs(auditLog, [item]);
+            try {
+                localStorage.setItem('sys_audit_log_v11', JSON.stringify((Array.isArray(auditLog) ? auditLog : []).slice(0, 25)));
+            } catch (e) {}
+            if (loggedUser) {
+                try {
+                    pushSettingsToCloud();
+                } catch (e) {}
+            }
+            if (typeof renderAll === 'function') renderAll();
+        }
+
+        auditLog = getAuditLog();
         
         let currentOrderFilter = 'ALL'; let currentPrintBatch = []; let html5QrCodeScanner = null; let dashboardChart = null; 
         let exportTypeContext = ''; let exportWidthMm = 0; let exportHeightMm = 0; let exportFilename = 'export';
         let currentDeliveryAction = 'DELIVER'; 
+        let cloudSyncTimer = null;
+        let cloudSyncInFlight = false;
+
+        function startCloudSyncLoop() {
+            if (cloudSyncTimer) return;
+            cloudSyncTimer = setInterval(() => {
+                if (loggedUser && !cloudSyncInFlight) fetchFromCloud(true);
+            }, SYNC_INTERVAL_MS);
+        }
 
         function setSyncError() {
             const syncIcon = document.getElementById('sync-icon');
@@ -475,12 +662,31 @@
         function normalizeCloudOrder(o) {
             if (!o || !o.id) return null;
             const copy = { ...o };
-            if (!copy.status || copy.status.toString().trim() === "") copy.status = 'NEW';
+            const rawStatus = (copy.status === undefined || copy.status === null || copy.status === '') ? 'NEW' : String(copy.status).trim();
+            copy.status = rawStatus.toUpperCase();
+            if (!STATUS_MAP[copy.status]) copy.status = 'NEW';
             copy.statusText = STATUS_MAP[copy.status] || copy.status;
             if (copy.assignedTech === 'null' || copy.assignedTech === 'undefined' || copy.assignedTech === "") copy.assignedTech = null;
             if (copy.timestamp === undefined || copy.timestamp === null || copy.timestamp === '') copy.timestamp = Date.now();
             copy.updatedAt = Number(copy.updatedAt || copy.timestamp || Date.now());
             return copy;
+        }
+
+        function getNextOrderIds(count) {
+            const existingIds = orders.map(o => Number(o.id) || 0).filter(n => Number.isFinite(n));
+            const nextIds = [];
+            let nextId = existingIds.length ? Math.max(...existingIds) : 0;
+
+            for (let i = 0; i < count; i++) {
+                nextId += 1;
+                while (existingIds.includes(nextId) || nextIds.includes(nextId)) {
+                    nextId += 1;
+                }
+                nextIds.push(nextId);
+                existingIds.push(nextId);
+            }
+
+            return nextIds;
         }
 
         function mergeCloudState(localItems, cloudItems) {
@@ -506,25 +712,36 @@
                 if (!localItem) return cloudItem;
                 if (!cloudItem) return localItem;
 
-                const localUpdated = Number(localItem.updatedAt || localItem.timestamp || 0);
-                const cloudUpdated = Number(cloudItem.updatedAt || cloudItem.timestamp || 0);
-
-                return cloudUpdated > localUpdated ? cloudItem : localItem;
+                return cloudItem;
             });
 
-            return merged.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+            return merged.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
         }
 
         async function fetchFromCloud(isBackground = false) {
             if (!API_URL || API_URL.includes("ضع_الرابط")) {
-                if(!isBackground) document.getElementById('global-loader').classList.add('hidden');
+                if(!isBackground) {
+                    const loader = document.getElementById('global-loader');
+                    if (loader) loader.classList.add('hidden');
+                }
                 return;
             }
+            if (cloudSyncInFlight) return;
+
+            cloudSyncInFlight = true;
             const syncIcon = document.getElementById('sync-icon');
             if(syncIcon) syncIcon.classList.add('syncing', 'text-amber-300');
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), SYNC_REQUEST_TIMEOUT_MS);
             
             try {
-                const res = await fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({action: "GET_ALL"}) });
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'text/plain'},
+                    body: JSON.stringify({action: "GET_ALL"}),
+                    signal: controller.signal
+                });
                 const data = await res.json();
 
                 if (data && data.orders) {
@@ -532,10 +749,19 @@
                     orders = mergedOrders.filter(o => o && o.id && o.id.toString().trim() !== "");
                 }
 
-                if(data && data.users && data.users.length > 0) users = data.users;
+                const cloudUsers = getUsersFromSheetData(data);
+                if (cloudUsers.length > 0) {
+                    users = cloudUsers;
+                }
                 if(data && data.cs) csList = Array.isArray(data.cs) ? data.cs : [];
                 if(data && data.brands && data.brands.length > 0) brandsList = data.brands;
                 if(data && data.accTypes && data.accTypes.length > 0) accTypesList = data.accTypes;
+                if (data && Array.isArray(data.auditLog)) {
+                    auditLog = mergeAuditLogs(auditLog, data.auditLog);
+                }
+                if (data && Array.isArray(data.activity)) {
+                    auditLog = mergeAuditLogs(auditLog, data.activity);
+                }
                 
                 saveState();
                 renderAll();
@@ -543,16 +769,29 @@
             } catch(e) { 
                 console.log("Offline or sync error", e); 
                 setSyncError();
+                const fallback = loadLocalFallbacks();
+                orders = fallback.orders;
+                users = fallback.users;
+                brandsList = fallback.brands;
+                csList = fallback.cs;
+                accTypesList = fallback.accTypes;
+                auditLog = mergeAuditLogs([], fallback.auditLog || []);
+                renderAll();
             } finally {
-                if(!isBackground) document.getElementById('global-loader').classList.add('hidden');
+                clearTimeout(timeoutId);
+                cloudSyncInFlight = false;
+                if(!isBackground) {
+                    const loader = document.getElementById('global-loader');
+                    if (loader) loader.classList.add('hidden');
+                }
             }
         }
 
         function pushOrderToCloud(o) {
-            if (!API_URL || API_URL.includes("ضع_الرابط")) return;
+            if (!API_URL || API_URL.includes("ضع_الرابط")) return Promise.resolve();
             const payload = { ...o, updatedAt: Number(o.updatedAt || o.timestamp || Date.now()) };
-            fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({action: "UPSERT_ORDER", order: payload}) })
-            .catch(e => { console.log(e); setSyncError(); });
+            return fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({action: "UPSERT_ORDER", order: payload}) })
+                .catch(e => { console.log(e); setSyncError(); });
         }
 
         function deleteOrderInCloud(id) {
@@ -561,30 +800,84 @@
             .catch(e => { console.log(e); setSyncError(); });
         }
 
+        function deleteAllOrdersInCloud() {
+            if (!API_URL || API_URL.includes("ضع_الرابط")) return;
+
+            const clearPayload = {
+                action: "DELETE_ALL_ORDERS",
+                sheetName: "Orders",
+                orders: []
+            };
+
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'text/plain'},
+                body: JSON.stringify(clearPayload)
+            }).catch(e => { console.log(e); setSyncError(); });
+
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'text/plain'},
+                body: JSON.stringify({
+                    action: "SYNC_SETTINGS",
+                    orders: [],
+                    sheetName: "Orders",
+                    syncMode: "CLEAR_ALL_ORDERS"
+                })
+            }).catch(e => { console.log(e); setSyncError(); });
+        }
+
+        function deleteAllOrders() {
+            const total = orders.length;
+            if (!total) {
+                alert('لا توجد تذاكر لحذفها في الوقت الحالي.');
+                return;
+            }
+
+            const confirmed = confirm(`⚠️ تحذير: سيتم حذف جميع التذاكر (${total}) من النظام، سواء كانت جديدة أم قيد الإصلاح أم بانتظار قطعة أم جاهزة للتسليم أم تالفة أم تم التسليم أم صرف بديل. لا يمكن التراجع عن هذا الإجراء.`);
+            if (!confirmed) return;
+
+            appendAuditEntry(`تم حذف جميع التذاكر (${total}) من قبل ${loggedUser ? loggedUser.name : 'النظام'}.`, { action: 'DELETE_ALL' });
+            orders = [];
+            saveState();
+            deleteAllOrdersInCloud();
+            renderAll();
+            alert('تم حذف جميع التذاكر بنجاح من النظام وقاعدة البيانات.');
+        }
+
         function pushSettingsToCloud() {
             if (!API_URL || API_URL.includes("ضع_الرابط")) return;
-            fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({ action: "SYNC_SETTINGS", brands: brandsList, accTypes: accTypesList, users: users, cs: csList }) })
+            const payload = {
+                action: "SYNC_SETTINGS",
+                sheetName: "Users",
+                usersSheet: "Users",
+                brands: brandsList,
+                accTypes: accTypesList,
+                users: normalizeUsers(users),
+                cs: csList,
+                auditLog: auditLog
+            };
+            fetch(API_URL, { method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify(payload) })
             .catch(e => { console.log(e); setSyncError(); });
         }
 
         function saveState() { 
             try {
-                localStorage.setItem('sys_orders_v11_3', JSON.stringify(orders)); 
-            } catch (e) {
-                console.warn("الذاكرة المحلية ممتلئة، سيتم تنظيف الأرشيف محلياً لتوفير مساحة...");
-                try {
-                    const activeOrders = orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'REPLACED');
-                    localStorage.setItem('sys_orders_v11_3', JSON.stringify(activeOrders));
-                } catch (err) {
-                    console.error("تعذر الحفظ المحلي، سيتم الاعتماد على الذاكرة العشوائية والسحابة فقط.", err);
+                const currentUser = loggedUser ? {
+                    id: loggedUser.id,
+                    username: loggedUser.username,
+                    name: loggedUser.name,
+                    role: loggedUser.role,
+                    pin: loggedUser.pin
+                } : null;
+                if (currentUser) {
+                    localStorage.setItem('sys_logged_user_v11_3', JSON.stringify(currentUser));
                 }
-            }
+            } catch (e) {}
 
             try {
-                localStorage.setItem('sys_users_v11_3', JSON.stringify(users)); 
-                localStorage.setItem('sys_brands_v11_3', JSON.stringify(brandsList)); 
-                localStorage.setItem('sys_cs_v11_3', JSON.stringify(csList)); 
-                localStorage.setItem('sys_acc_types_v11_4', JSON.stringify(accTypesList)); 
+                const recentAudit = Array.isArray(auditLog) ? auditLog.slice(0, 25) : [];
+                localStorage.setItem('sys_audit_log_v11', JSON.stringify(recentAudit));
             } catch (e) {}
 
             updateBadges(); 
@@ -596,6 +889,7 @@
                 const confirmDelete = confirm('⚠️ تحذير: هل أنت متأكد من رغبتك في حذف التذكرة رقم #' + id + ' بشكل نهائي؟ لا يمكن التراجع عن هذا الإجراء.');
                 
                 if (confirmDelete) {
+                    appendAuditEntry(`تم حذف الطلب رقم #${id} من قبل ${loggedUser ? loggedUser.name : 'النظام'}.`, { orderId: id, action: 'DELETE' });
                     orders = orders.filter(x => x.id.toString() !== id.toString());
                     saveState();
                     deleteOrderInCloud(id);
@@ -669,20 +963,31 @@
         }
 
         function checkAuth() {
+            const loginScreen = document.getElementById('login-screen');
+            const sidebar = document.getElementById('main-sidebar');
+            const mainContent = document.getElementById('main-content');
+            const loggedUserName = document.getElementById('logged-user-name');
+            const roleIcon = document.getElementById('role-icon');
+
             if (loggedUser) {
-                document.getElementById('login-screen').classList.add('hidden');
-                const sidebar = document.getElementById('main-sidebar');
+                if (loginScreen) loginScreen.classList.add('hidden');
                 if (sidebar) {
                     sidebar.classList.remove('hidden');
                     sidebar.classList.remove('open');
                 }
-                document.getElementById('main-content').classList.remove('hidden');
-                document.getElementById('logged-user-name').innerText = loggedUser.name;
-                const rI = document.getElementById('role-icon');
-                if(loggedUser.role === 'مدير نظام') { rI.innerHTML='<i class="fa-solid fa-crown"></i>'; rI.className='bg-amber-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs'; }
-                else if(loggedUser.role === 'مهندس صيانة') { rI.innerHTML='<i class="fa-solid fa-screwdriver-wrench"></i>'; rI.className='bg-emerald-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs'; }
+                if (mainContent) mainContent.classList.remove('hidden');
+                if (loggedUserName) loggedUserName.innerText = loggedUser.name || 'مستخدم';
+                if (roleIcon) {
+                    if(loggedUser.role === 'مدير نظام') { roleIcon.innerHTML='<i class="fa-solid fa-crown"></i>'; roleIcon.className='bg-amber-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs'; }
+                    else if(loggedUser.role === 'مهندس صيانة') { roleIcon.innerHTML='<i class="fa-solid fa-screwdriver-wrench"></i>'; roleIcon.className='bg-emerald-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs'; }
+                    else { roleIcon.innerHTML='<i class="fa-solid fa-user"></i>'; roleIcon.className='bg-sky-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs'; }
+                }
                 applyRolePermissions(); renderAll();
-            } else { document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('main-sidebar').classList.add('hidden'); document.getElementById('main-content').classList.add('hidden'); }
+            } else {
+                if (loginScreen) loginScreen.classList.remove('hidden');
+                if (sidebar) sidebar.classList.add('hidden');
+                if (mainContent) mainContent.classList.add('hidden');
+            }
         }
 
         function applyRolePermissions() {
@@ -701,7 +1006,7 @@
                 nDel.classList.add('hidden');
                 nSet.classList.add('hidden');
                 if (nDash) nDash.classList.add('hidden');
-                if (nTech) nTech.classList.add('hidden');
+               if (nTech) nTech.classList.remove('hidden');
                 if (navOrders) navOrders.classList.add('active');
                 if (tC) {
                     tC.innerHTML = `<button onclick="filterOrders('TECH_POOL', this)" class="tab-btn active px-4 py-1.5 rounded-xl border text-sm font-extrabold bg-amber-500 text-white border-amber-500">متاح للاستلام</button><button onclick="filterOrders('MY_ORDERS', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">عهدتي</button>`;
@@ -718,16 +1023,121 @@
                 if (nTech) nTech.classList.remove('hidden');
                 if(loggedUser.role === 'مدير نظام') nSet.classList.remove('hidden'); else nSet.classList.add('hidden');
                 if (tC) {
-                    tC.innerHTML = `<button onclick="filterOrders('ALL', this)" class="tab-btn active px-4 py-1.5 rounded-xl border text-sm font-bold">الكل (نشط)</button><button onclick="filterOrders('NEW', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">جديد</button><button onclick="filterOrders('READY', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-extrabold bg-emerald-100 text-emerald-800 border-emerald-300">جاهز للتسليم</button>`;
+                    tC.innerHTML = `
+                        <button onclick="filterOrders('ALL', this)" class="tab-btn active px-4 py-1.5 rounded-xl border text-sm font-bold">الكل</button>
+                        <button onclick="filterOrders('NEW', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">جديد</button>
+                        <button onclick="filterOrders('IN_PROGRESS', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">قيد العمل</button>
+                        <button onclick="filterOrders('WAITING_PART', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">بانتظار قطعة</button>
+                        <button onclick="filterOrders('READY', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-extrabold bg-emerald-100 text-emerald-800 border-emerald-300">جاهز للتسليم</button>
+                        <button onclick="filterOrders('DAMAGED', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold text-red-600 border-red-200">تالف</button>
+                    `;
                 }
                 currentOrderFilter = 'ALL';
             }
         }
-        function handleLogin(e) { e.preventDefault(); const u = document.getElementById('login-username').value.trim().toLowerCase(); const p = document.getElementById('login-pin').value.trim(); const f = users.find(usr => usr.username.toLowerCase() === u && usr.pin === p); if(f){ loggedUser=f; localStorage.setItem('sys_logged_user_v11_3', JSON.stringify(f)); document.getElementById('login-error').classList.add('hidden'); e.target.reset(); document.getElementById('global-loader').classList.remove('hidden'); checkAuth(); fetchFromCloud(); } else { document.getElementById('login-error').classList.remove('hidden'); } }
+        function handleLogin(e) { 
+            e.preventDefault();
+            const usernameInput = document.getElementById('login-username');
+            const pinInput = document.getElementById('login-pin');
+            const loginError = document.getElementById('login-error');
+            const globalLoader = document.getElementById('global-loader');
+            const u = (usernameInput ? usernameInput.value : '').trim().toLowerCase();
+            const p = (pinInput ? pinInput.value : '').trim();
+            const f = users.find(usr => (usr.username || '').toLowerCase() === u && String(usr.pin || '') === p);
+            if(f){ 
+                loggedUser = f;
+                localStorage.setItem('sys_logged_user_v11_3', JSON.stringify({
+                    id: f.id,
+                    username: f.username,
+                    name: f.name,
+                    role: f.role,
+                    pin: f.pin
+                }));
+                appendAuditEntry(`تم تسجيل دخول المستخدم ${f.name} إلى النظام.`, { userId: f.id, action: 'LOGIN' });
+                if (loginError) loginError.classList.add('hidden'); 
+                if (usernameInput) usernameInput.value = '';
+                if (pinInput) pinInput.value = '';
+                if (globalLoader) globalLoader.classList.remove('hidden'); 
+                checkAuth(); 
+                startCloudSyncLoop();
+                fetchFromCloud(); 
+            } else {
+                if (loginError) loginError.classList.remove('hidden');
+            }
+        }
         function handleLogout() { loggedUser=null; localStorage.removeItem('sys_logged_user_v11_3'); checkAuth(); }
-        function switchView(viewId, btnElement) { document.querySelectorAll('.view-section').forEach(el=>el.classList.add('hidden')); document.getElementById(`view-${viewId}`).classList.remove('hidden'); if(btnElement){ document.querySelectorAll('.sidebar-link').forEach(el=>el.classList.remove('active')); btnElement.classList.add('active'); } if(window.innerWidth < 768) closeSidebar(); renderAll(); }
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); if(window.innerWidth < 768) closeSidebar(); if(id === 'modal-manage-users') renderUsers(); if(id === 'modal-manage-customers') renderCustomersSuppliers(); if(id === 'modal-list-settings') renderBrandsSettings(); if(id === 'modal-acc-settings') renderAccSettings(); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function showManualSyncModal(statusText = 'جارٍ مزامنة البيانات...', isSuccess = false) {
+            const modal = document.getElementById('manual-sync-modal');
+            const status = document.getElementById('manual-sync-status');
+            const spinner = document.getElementById('manual-sync-spinner');
+            if (!modal || !status || !spinner) return;
+
+            if (!modal.dataset.bound) {
+                modal.addEventListener('click', function (event) {
+                    if (event.target === modal) {
+                        hideManualSyncModal();
+                    }
+                });
+                modal.dataset.bound = 'true';
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            status.textContent = statusText;
+            status.classList.toggle('text-primary', !isSuccess);
+            status.classList.toggle('text-emerald-600', isSuccess);
+            spinner.classList.toggle('hidden', isSuccess);
+            spinner.style.display = isSuccess ? 'none' : 'block';
+        }
+
+        function hideManualSyncModal() {
+            const modal = document.getElementById('manual-sync-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function triggerManualSync() {
+            if (cloudSyncInFlight) {
+                showManualSyncModal('جارٍ مزامنة البيانات...', false);
+                return;
+            }
+
+            showManualSyncModal('جارٍ مزامنة البيانات...', false);
+
+            fetchFromCloud(false)
+                .then(() => {
+                    const modal = document.getElementById('manual-sync-modal');
+                    if (modal && !modal.classList.contains('hidden')) {
+                        showManualSyncModal('تمت المزامنة بنجاح', true);
+                        setTimeout(() => {
+                            hideManualSyncModal();
+                        }, 600);
+                    }
+                })
+                .catch(() => {
+                    const modal = document.getElementById('manual-sync-modal');
+                    if (modal && !modal.classList.contains('hidden')) {
+                        showManualSyncModal('تعذر المزامنة. حاول مرة أخرى', true);
+                        setTimeout(() => {
+                            hideManualSyncModal();
+                        }, 900);
+                    }
+                });
+        }
+
+        function switchView(viewId, btnElement) { 
+            const targetView = document.getElementById(`view-${viewId}`);
+            if (!targetView) return;
+            document.querySelectorAll('.view-section').forEach(el=>el.classList.add('hidden')); 
+            targetView.classList.remove('hidden'); 
+            if(btnElement){ document.querySelectorAll('.sidebar-link').forEach(el=>el.classList.remove('active')); btnElement.classList.add('active'); } 
+            if(window.innerWidth < 768) closeSidebar(); 
+            renderAll(); 
+        }
+        function openModal(id) { const modal = document.getElementById(id); if (!modal) return; modal.classList.remove('hidden'); if(window.innerWidth < 768) closeSidebar(); if(id === 'modal-manage-users') renderUsers(); if(id === 'modal-manage-customers') renderCustomersSuppliers(); if(id === 'modal-list-settings') renderBrandsSettings(); if(id === 'modal-acc-settings') renderAccSettings(); }
+        function closeModal(id) { const modal = document.getElementById(id); if (modal) modal.classList.add('hidden'); }
         
         function refreshOrgSelectOptions() {
             const orgSelect = document.getElementById('ord-org');
@@ -770,43 +1180,64 @@
             orgSelect.dataset.currentValue = orgSelect.value;
         }
 
-        function openAddOrderModal() { const selectEl = document.getElementById('ord-brand'); if(selectEl) selectEl.innerHTML = brandsList.map(b => `<option value="${b}">${b}</option>`).join(''); refreshAccessorySelectOptions(); refreshOrgSelectOptions(); toggleEntryType('DEVICE'); openModal('modal-add-order'); }
+        function formatReceiptDateInput(dateValue) {
+            const fallback = new Date();
+            const source = dateValue ? new Date(dateValue) : fallback;
+            if (Number.isNaN(source.getTime())) {
+                return `${fallback.getFullYear()}/${String(fallback.getMonth()+1).padStart(2, '0')}/${String(fallback.getDate()).padStart(2, '0')}`;
+            }
+            return `${source.getFullYear()}/${String(source.getMonth()+1).padStart(2, '0')}/${String(source.getDate()).padStart(2, '0')}`;
+        }
+
+        function getDateInputValueForToday() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function openAddOrderModal() { 
+            const selectEl = document.getElementById('ord-brand'); if(selectEl) selectEl.innerHTML = brandsList.map(b => `<option value="${b}">${b}</option>`).join(''); 
+            const dateInput = document.getElementById('ord-date');
+            if (dateInput) dateInput.value = getDateInputValueForToday();
+            refreshAccessorySelectOptions(); refreshOrgSelectOptions(); toggleEntryType('DEVICE'); openModal('modal-add-order'); 
+        }
         
-        function submitOrderForm(btnElement) {
+        async function submitOrderForm(btnElement) {
             try {
                 if(btnElement) { btnElement.disabled = true; btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...'; }
                 const t = document.getElementById('entry-type-val').value;
                 const o = document.getElementById('ord-org').value.trim();
                 const f = document.getElementById('ord-faults').value.trim();
                 const modelVal = document.getElementById('ord-model').value.trim();
+                const receiptDateValue = document.getElementById('ord-date') ? document.getElementById('ord-date').value : '';
 
                 if (!o || !f) { alert('⚠️ يرجى تعبئة الحقول الإلزامية: (الجهة) و (الأعطال/المشكلة)'); return; }
                 if (t === 'DEVICE' && !modelVal) { alert('⚠️ يرجى تعبئة (الطراز والموديل) الخاص بالجهاز'); return; }
 
-                const dObj = new Date();
-                const ds = `${dObj.getFullYear()}/${dObj.getMonth()+1}/${dObj.getDate()}`;
-
-                let maxId = orders.length > 0 ? Math.max(...orders.map(x => parseInt(x.id) || 0)) : 0;
+                const ds = formatReceiptDateInput(receiptDateValue);
                 currentPrintBatch = [];
                 const ts = new Date().getTime();
+                const createdItems = [];
 
                 if(t === 'DEVICE'){
-                    maxId++;
+                    const generatedIds = getNextOrderIds(1);
                     const brandVal = document.getElementById('ord-brand').value || 'غير محدد';
-                    const n = { id: maxId, entryType: 'DEVICE', brand: brandVal, model: modelVal, serial: document.getElementById('ord-serial').value || '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts, updatedAt: ts, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
-                    orders.unshift(n);
-                    currentPrintBatch.push(n);
-                    pushOrderToCloud(n);
+                    const n = { id: generatedIds[0], entryType: 'DEVICE', brand: brandVal, model: modelVal, serial: document.getElementById('ord-serial').value || '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts, updatedAt: ts, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
+                    createdItems.push(n);
                 } else {
                     const at = document.getElementById('acc-type-select').value || 'توابع';
                     const q = parseInt(document.getElementById('acc-qty').value) || 1;
-                    for (let i = 1; i <= q; i++) {
-                        maxId++;
-                        const n = { id: maxId, entryType: 'ACCESSORY', brand: at, model: `قطعة ${i}`, serial: '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts, updatedAt: ts, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
-                        orders.unshift(n);
-                        currentPrintBatch.push(n);
-                        pushOrderToCloud(n);
+                    const generatedIds = getNextOrderIds(q);
+                    for (let i = 0; i < q; i++) {
+                        const n = { id: generatedIds[i], entryType: 'ACCESSORY', brand: at, model: `قطعة ${i + 1}`, serial: '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts + i, updatedAt: ts + i, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
+                        createdItems.push(n);
                     }
+                }
+
+                for (const item of createdItems) {
+                    orders.unshift(item);
+                    currentPrintBatch.push(item);
+                    appendAuditEntry(`تم استلام كرت جديد رقم #${item.id} للجهة ${item.org || 'غير محدد'}.`, { orderId: item.id, type: item.entryType });
+                    await pushOrderToCloud(item);
                 }
                 
                 saveState();
@@ -855,82 +1286,99 @@
 
         function prepareLabelExport() {
             if(currentPrintBatch.length === 0) return;
+            const totalSlots = 40;
+            const pageItems = Array.from({ length: totalSlots }, (_, index) => currentPrintBatch[index] || null);
+
             let htmlContent = `
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap');
+                    .a5-label-page {
+                        width: 148mm;
+                        min-height: 210mm;
+                        padding: 3mm;
+                        box-sizing: border-box;
+                        background: #fff;
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        grid-auto-rows: 18mm;
+                        gap: 2mm;
+                        direction: rtl;
+                        font-family: 'Cairo', sans-serif;
+                    }
                     .lbl {
-                        width: 48mm;
-                        min-height: 28mm;
-                        margin: 1mm auto;
-                        padding: 2mm 3mm;
+                        width: 100%;
+                        height: 100%;
+                        padding: 1.8mm 2mm;
                         display: flex;
                         flex-direction: column;
                         justify-content: space-between;
                         box-sizing: border-box;
-                        border: 2px solid #111827;
-                        border-radius: 6px;
+                        border: 1.5px solid #111827;
+                        border-radius: 5px;
                         background: #fff;
-                        font-family: 'Cairo', sans-serif;
-                        direction: rtl;
-                        page-break-after: always;
+                        overflow: hidden;
                     }
                     .top-row {
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
                         width: 100%;
-                        border-bottom: 1.5px dashed #111827;
-                        padding-bottom: 2px;
+                        border-bottom: 1px dashed #111827;
+                        padding-bottom: 1mm;
                     }
                     .dt {
-                        font-size: 10px;
+                        font-size: 8px;
                         font-weight: 800;
                         color: #111827;
                     }
                     .id-box {
-                        font-size: 13px;
+                        font-size: 10px;
                         font-weight: 900;
                         color: #111827;
                         background: #f3f4f6;
-                        padding: 2px 7px;
+                        padding: 1px 5px;
                         border-radius: 4px;
                     }
                     .center-org {
-                        font-size: 18px;
+                        font-size: 12px;
                         font-weight: 900;
                         text-align: center;
                         color: #111827;
-                        line-height: 1.2;
+                        line-height: 1.1;
                         word-break: break-word;
                         overflow-wrap: anywhere;
-                        min-height: 15mm;
+                        min-height: 7mm;
                         display: flex;
                         align-items: center;
                         justify-content: center;
                     }
                     .device-meta {
-                        font-size: 8px;
+                        font-size: 7px;
                         font-weight: 700;
                         color: #475569;
-                        line-height: 1.4;
-                        text-align: center;
+                        line-height: 1.25;
+                        text-align: right;
                         word-break: break-word;
                         overflow-wrap: anywhere;
-                        min-height: 6mm;
+                    }
+                    .meta-line {
+                        display: block;
+                        margin-top: 1px;
                     }
                 </style>
-                ${currentPrintBatch.map(o => `
-                    <div class="lbl" dir="rtl">
-                        <div class="top-row">
-                            <span class="dt">${o.date || ''}</span>
-                            <div class="id-box">#${o.id}</div>
+                <div class="a5-label-page" dir="rtl">
+                    ${pageItems.filter(Boolean).map(item => `
+                        <div class="lbl" dir="rtl">
+                            <div class="top-row">
+                                <span class="dt">${item.date || ''}</span>
+                                <div class="id-box">#${item.id}</div>
+                            </div>
+                            <div class="center-org">${item.org || 'غير محدد'}</div>
                         </div>
-                        <div class="center-org">${o.org || 'غير محدد'}</div>
-                        ${o.entryType === 'DEVICE' ? `<div class="device-meta">${(o.brand || '') + ' ' + (o.model || '')}<br>${o.faults || ''}</div>` : ''}
-                    </div>
-                `).join('')}
+                    `).join('')}
+                </div>
             `;
-            triggerExportModal(htmlContent, 50, 30 * currentPrintBatch.length, `ملصق_تذكرة_${currentPrintBatch[0].id}`, 'LABEL');
+            triggerExportModal(htmlContent, 148, 210, `ملصق_تذكرة_${currentPrintBatch[0].id}`, 'LABEL');
         }
 
         function reprintSingleLabel() { const id = document.getElementById('upd-order-id').value; const o = orders.find(x => x.id.toString() === id.toString()); if(o){ closeModal('modal-update-order'); currentPrintBatch=[o]; prepareLabelExport(); } }
@@ -947,7 +1395,8 @@
             document.getElementById('del-id-text').innerText = `#${o.id}`; 
             refreshDeliveryOrgSelectOptions(o.org || '');
             document.getElementById('del-name-input').value = o.customer || ''; 
-            document.getElementById('del-date-input').value = `${new Date().toLocaleDateString('ar-EG')} - ${new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'})}`; 
+            const deliveryDateInput = document.getElementById('del-date-input');
+            if (deliveryDateInput) deliveryDateInput.value = getDateInputValueForToday();
             
             const titleEl = document.getElementById('delivery-modal-title');
             const btnEl = document.getElementById('delivery-submit-btn');
@@ -971,6 +1420,7 @@
                 
                 const orgVal = document.getElementById('del-org-input').value.trim();
                 const nameVal = document.getElementById('del-name-input').value.trim();
+                const selectedDeliveryDate = document.getElementById('del-date-input').value;
                 
                 if (!orgVal || !nameVal) {
                     alert('⚠️ يرجى تعبئة الحقول الإلزامية: (الجهة المستلمة) و (اسم المستلم)');
@@ -984,9 +1434,11 @@
                     action: currentDeliveryAction,
                     org: orgVal, 
                     name: nameVal, 
-                    dateStr: document.getElementById('del-date-input').value, 
-                    timestamp: new Date().getTime() 
+                    dateStr: formatReceiptDateInput(selectedDeliveryDate),
+                    timestamp: new Date(selectedDeliveryDate || Date.now()).getTime() 
                 }; 
+
+                appendAuditEntry(`تم ${currentDeliveryAction === 'REPLACE' ? 'صرف بديل' : 'تسليم'} الطلب رقم #${o.id} للجهة ${orgVal}.`, { orderId: o.id, action: currentDeliveryAction });
                 
                 saveState(); 
                 pushOrderToCloud(o); 
@@ -1019,6 +1471,7 @@
                     o.status = 'IN_PROGRESS'; 
                     o.statusText = STATUS_MAP[o.status]; 
                     o.updatedAt = Date.now();
+                    appendAuditEntry(`استلم المهندس ${loggedUser.name} الطلب رقم #${o.id} وعمل عليه الآن.`, { orderId: o.id, action: 'ASSIGN' });
                     saveState(); 
                     pushOrderToCloud(o); 
                     closeModal('modal-update-order'); 
@@ -1042,10 +1495,13 @@
                 const o = orders.find(x => x.id.toString() === id.toString()); 
                 
                 if(o) { 
-                    o.status = document.getElementById('upd-status-select').value; 
+                    const newStatus = document.getElementById('upd-status-select').value;
+                    o.status = newStatus; 
                     o.statusText = STATUS_MAP[o.status] || o.status; 
                     o.notes = document.getElementById('upd-notes').value || ''; 
                     o.updatedAt = Date.now();
+
+                    appendAuditEntry(`تم تحديث حالة الطلب رقم #${o.id} إلى ${o.statusText}.`, { orderId: o.id, action: 'STATUS_CHANGE', status: o.status });
                     
                     saveState(); 
                     pushOrderToCloud(o); 
@@ -1071,7 +1527,7 @@
                 let idStr = (o.id || '').toString();
                 let serialStr = (o.serial || '').toString().toLowerCase();
                 return brandStr.includes(v) || modelStr.includes(v) || serialStr.includes(v) || idStr === v || orgStr.includes(v);
-            }); 
+            }).sort((a, b) => Number(b.id || 0) - Number(a.id || 0)); 
             
             if(loggedUser && loggedUser.role === 'مهندس صيانة'){ 
                 f = f.filter(o => {
@@ -1083,13 +1539,16 @@
                     return false;
                 }); 
             } else { 
-                if(currentOrderFilter === 'NEW') f = f.filter(o => o.status === 'NEW' || !o.status); 
-                if(currentOrderFilter === 'READY') f = f.filter(o => o.status === 'READY'); 
-            } 
+                if(currentOrderFilter === 'NEW') f = f.filter(o => o.status === 'NEW' || !o.status);
+                if(currentOrderFilter === 'IN_PROGRESS') f = f.filter(o => o.status === 'IN_PROGRESS');
+                if(currentOrderFilter === 'WAITING_PART') f = f.filter(o => o.status === 'WAITING_PART');
+                if(currentOrderFilter === 'READY') f = f.filter(o => o.status === 'READY');
+                if(currentOrderFilter === 'DAMAGED') f = f.filter(o => o.status === 'DAMAGED');
+            }
             
             document.getElementById('badge-orders-count').innerText = orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'REPLACED').length; 
-            
             c.innerHTML = f.map(o => `<div onclick="openUpdateOrderModal(${o.id})" class="bg-white rounded-3xl p-6 shadow-md border-r-8 ${o.status==='READY'?'border-emerald-500':(o.status==='DAMAGED'?'border-red-500':'border-primary')} flex flex-col justify-between cursor-pointer hover:shadow-xl transition-all"><div class="flex justify-between items-center mb-4"><span class="bg-gray-100 text-gray-800 text-[10px] px-3 py-1 rounded-full font-black">${o.date || ''}</span><span class="text-2xl font-black ${o.status==='DAMAGED'?'text-red-500':'text-primary'}">#${o.id}</span></div><div class="text-right space-y-2"><div class="text-lg font-black text-primaryDark">${o.org || 'غير محدد'}</div><div class="text-sm font-bold text-gray-700">الجهاز: ${o.brand || ''} - ${o.model || ''}</div><div class="text-xs font-semibold text-gray-500">سيريال: ${o.serial || 'لا يوجد'}</div></div><div class="mt-4 pt-3 border-t flex justify-between items-center"><span class="text-[11px] font-black ${o.status==='READY'?'text-emerald-600':(o.status==='DAMAGED'?'text-red-600':'text-gray-500')}">${o.statusText || 'جديد'}</span><span class="text-[10px] font-bold text-gray-400">🛠️ ${o.assignedTech || 'غير مستلم'}</span></div></div>`).join(''); 
+            renderRoleActivityPanel();
         }
         
         function filterOrders(s, b) { currentOrderFilter = s; document.querySelectorAll('#tabs-container .tab-btn').forEach(el=>el.classList.remove('active')); if(b)b.classList.add('active'); renderOrders(); }
@@ -1110,6 +1569,7 @@
             let f = orders.filter(o => o.status === 'DELIVERED' || o.status === 'REPLACED');
             if(filterType === 'DELIVERED') f = f.filter(o => o.status === 'DELIVERED');
             if(filterType === 'REPLACED') f = f.filter(o => o.status === 'REPLACED');
+            f = f.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
             
             if(v) f = f.filter(o => {
                 let brandStr = (o.brand || '').toString().toLowerCase();
@@ -1183,8 +1643,39 @@
             openModal('modal-update-order'); 
         }
 
-        function renderUsers() { document.getElementById('users-list-container').innerHTML = users.map(u => { let badge = u.role === 'مدير نظام' ? 'bg-amber-100 text-amber-800' : (u.role === 'مهندس صيانة' ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800'); return `<div class="bg-gray-50 border p-3 rounded-xl flex justify-between items-center"><div><div class="font-bold text-sm text-gray-800">${u.name} <span class="${badge} text-[10px] px-2 py-0.5 rounded ml-1 font-bold">${u.role}</span></div></div>${u.username !== 'admin' ? `<button onclick="users=users.filter(i=>i.id!=${u.id});saveState();pushSettingsToCloud();renderUsers();" class="text-red-500 text-xs font-bold"><i class="fa-solid fa-trash ml-1"></i>حذف</button>` : '<span class="text-[10px] text-gray-400">أساسي</span>'}</div>`; }).join(''); }
-        function saveNewUser(e) { e.preventDefault(); const newId=users.length>0?Math.max(...users.map(u=>u.id))+1:1; users.push({id:newId,name:document.getElementById('new-user-name').value,username:document.getElementById('new-user-username').value.trim(),pin:document.getElementById('new-user-pin').value.trim(),role:document.getElementById('new-user-role').value}); saveState(); pushSettingsToCloud(); renderUsers(); e.target.reset(); }
+        function renderUsers() {
+            const container = document.getElementById('users-list-container');
+            if (!container) return;
+            const sourceUsers = normalizeUsers(users);
+            container.innerHTML = sourceUsers.map(u => {
+                const badge = u.role === 'مدير نظام' ? 'bg-amber-100 text-amber-800' : (u.role === 'مهندس صيانة' ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800');
+                return `<div class="bg-gray-50 border p-3 rounded-xl flex justify-between items-center"><div><div class="font-bold text-sm text-gray-800">${u.name} <span class="${badge} text-[10px] px-2 py-0.5 rounded ml-1 font-bold">${u.role}</span></div></div>${(u.username || '').toLowerCase() !== 'admin' ? `<button onclick="users = normalizeUsers(users.filter(i=>i.id!=${u.id})); saveState(); pushSettingsToCloud(); renderUsers();" class="text-red-500 text-xs font-bold"><i class="fa-solid fa-trash ml-1"></i>حذف</button>` : '<span class="text-[10px] text-gray-400">أساسي</span>'}</div>`;
+            }).join('');
+        }
+        function saveNewUser(e) { 
+            e.preventDefault();
+            const name = (document.getElementById('new-user-name').value || '').trim();
+            const username = (document.getElementById('new-user-username').value || '').trim();
+            const pin = (document.getElementById('new-user-pin').value || '').trim();
+            const role = document.getElementById('new-user-role').value;
+
+            if (!name || !username || !pin) {
+                alert('⚠️ يرجى تعبئة اسم المستخدم والرمز ووظيفة الحساب.');
+                return;
+            }
+
+            if (normalizeUsers(users).some(u => (u.username || '').toLowerCase() === username.toLowerCase())) {
+                alert('⚠️ اسم المستخدم موجود مسبقاً، يرجى اختيار اسم آخر.');
+                return;
+            }
+
+            const newId = normalizeUsers(users).length > 0 ? Math.max(...normalizeUsers(users).map(u => Number(u.id) || 0)) + 1 : 1;
+            users = normalizeUsers([...users, { id: newId, name, username, pin, role }]);
+            saveState();
+            pushSettingsToCloud();
+            renderUsers();
+            e.target.reset();
+        }
         function renderCustomersSuppliers() { 
             const container = document.getElementById('cs-list-container');
             if (!container) return;
@@ -1214,7 +1705,22 @@
             e.target.reset();
         }
         function renderBrandsSettings() { const container = document.getElementById('brands-list-container'); if(container) { container.innerHTML = brandsList.map((b, idx) => `<div class="bg-gray-50 border px-3 py-2 rounded-xl flex justify-between items-center text-xs font-bold text-gray-700"><span>📱 ${b}</span>${brandsList.length > 1 ? `<button onclick="brandsList.splice(${idx},1);saveState();pushSettingsToCloud();renderBrandsSettings();" class="text-red-500 hover:text-red-700 font-extrabold"><i class="fa-solid fa-trash ml-1"></i>حذف</button>` : ''}</div>`).join(''); } }
-        function addNewBrand(e) { e.preventDefault(); const input = document.getElementById('new-brand-input'); const val = input.value.trim(); if(val && !brandsList.includes(val)) { brandsList.push(val); saveState(); pushSettingsToCloud(); renderBrandsSettings(); input.value = ''; alert(`تم إضافة الماركة (${val}) بنجاح!`); } }
+        function addNewBrand(e) { 
+            e.preventDefault();
+            const input = document.getElementById('new-brand-input');
+            const val = (input.value || '').trim();
+            if (!val) return;
+            if (brandsList.some(b => (b || '').toString().trim().toLowerCase() === val.toLowerCase())) {
+                alert(`⚠️ الماركة (${val}) موجودة مسبقاً.`);
+                return;
+            }
+            brandsList.push(val);
+            saveState();
+            pushSettingsToCloud();
+            renderBrandsSettings();
+            input.value = '';
+            alert(`تم إضافة الماركة (${val}) بنجاح!`);
+        }
         function renderAccSettings() { 
             const container = document.getElementById('acc-list-container');
             if(!container) return;
@@ -1256,40 +1762,107 @@
             alert(`تم إضافة النوع (${val}) بنجاح!`);
         }
 
+        function openTechAssignedOrdersModal(techName) {
+            const listEl = document.getElementById('tech-orders-list');
+            const nameEl = document.getElementById('tech-orders-name');
+            if (!listEl || !nameEl) return;
+
+            const assigned = orders
+                .filter(o => (o.assignedTech || '').toString().trim() === techName.trim())
+                .filter(o => ['READY', 'DELIVERED', 'REPLACED', 'DAMAGED', 'IN_PROGRESS', 'WAITING_PART'].includes(o.status || 'NEW'))
+                .sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+
+            nameEl.value = techName;
+            if (!assigned.length) {
+                listEl.innerHTML = '<div class="bg-amber-50 border border-amber-200 text-amber-700 rounded-xl p-4 text-sm font-bold text-center">لا توجد أجهزة مسجلة لهذا المهندس حاليًا.</div>';
+                openModal('modal-tech-orders');
+                return;
+            }
+
+            listEl.innerHTML = assigned.map(o => {
+                const stateBadge = o.status === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' :
+                    o.status === 'READY' ? 'bg-blue-100 text-blue-800' :
+                    o.status === 'REPLACED' ? 'bg-amber-100 text-amber-800' :
+                    o.status === 'DAMAGED' ? 'bg-red-100 text-red-800' : 'bg-sky-100 text-sky-800';
+                return `
+                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex flex-col gap-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="text-[10px] px-2 py-1 rounded-full font-bold ${stateBadge}">${STATUS_MAP[o.status] || 'غير محدد'}</div>
+                            <div class="font-black text-lg text-primary">#${o.id}</div>
+                        </div>
+                        <div class="text-sm font-black text-gray-800">${o.org || 'غير محدد'}</div>
+                        <div class="text-xs font-bold text-gray-600">${o.brand || ''} ${o.model || ''}</div>
+                        <div class="text-[11px] font-bold text-gray-500">العطل: ${o.faults || 'غير محدد'}</div>
+                        <div class="text-[11px] font-bold text-gray-500">التاريخ: ${o.date || 'غير محدد'}</div>
+                    </div>
+                `;
+            }).join('');
+
+            openModal('modal-tech-orders');
+        }
+
+        function toggleTechReportPanel() {
+            const panel = document.getElementById('general-report-panel');
+            if (!panel) return;
+            const hideForTech = !!(loggedUser && loggedUser.role === 'مهندس صيانة');
+            panel.classList.toggle('hidden', hideForTech);
+        }
+
         function renderTechnicians() { 
             const searchInput = document.getElementById('search-tech');
             const v = searchInput ? (searchInput.value || '').toString().toLowerCase().trim() : ''; 
             
             let techUsers = users.filter(u => u.role === 'مهندس صيانة' && (u.name || '').toString().toLowerCase().includes(v));
+            if (loggedUser && loggedUser.role === 'مهندس صيانة') {
+                techUsers = techUsers.filter(u => (u.name || '').toString().trim() === (loggedUser.name || '').toString().trim());
+            }
             
-            document.getElementById('technicians-list-container').innerHTML = techUsers.map(u => `
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div class="flex justify-between items-start mb-2">
-                    <div class="space-y-1">
-                        <h4 class="font-bold text-gray-800 text-base">${u.name}</h4>
-                        <div class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold inline-block">مهندس صيانة</div>
-                    </div>
-                    <div class="bg-sky-50 text-primary w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0">
-                        <i class="fa-solid fa-user-gear"></i>
-                    </div>
-                </div>
-                ${(loggedUser && (loggedUser.role === 'مدير نظام' || loggedUser.role === 'موظف استقبال')) ? `
-                <div class="border-t pt-3 mt-3 space-y-3">
-                    <div class="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border">
-                        <div class="w-full">
-                            <span class="text-[10px] font-bold text-gray-500 block mb-1">من تاريخ:</span>
-                            <input type="date" id="tech-from-${u.id}" class="border rounded-lg px-2 py-1 text-xs font-bold w-full focus:outline-none">
+            document.getElementById('technicians-list-container').innerHTML = techUsers.map(u => {
+                const assignedCount = orders.filter(o => (o.assignedTech || '').toString().trim() === (u.name || '').trim()).length;
+                const completedCount = orders.filter(o => (o.assignedTech || '').toString().trim() === (u.name || '').trim() && ['READY', 'DELIVERED', 'REPLACED'].includes(o.status || '')).length;
+                const showActions = loggedUser && (loggedUser.role === 'مدير نظام' || loggedUser.role === 'موظف استقبال' || (loggedUser.role === 'مهندس صيانة' && (u.name || '').trim() === (loggedUser.name || '').trim()));
+                return `
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="space-y-1">
+                            <h4 class="font-bold text-gray-800 text-base">${u.name}</h4>
+                            <div class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold inline-block">مهندس صيانة</div>
                         </div>
-                        <div class="w-full">
-                            <span class="text-[10px] font-bold text-gray-500 block mb-1">إلى تاريخ:</span>
-                            <input type="date" id="tech-to-${u.id}" class="border rounded-lg px-2 py-1 text-xs font-bold w-full focus:outline-none">
+                        <div class="bg-sky-50 text-primary w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0">
+                            <i class="fa-solid fa-user-gear"></i>
                         </div>
                     </div>
-                    <button onclick="generateTechReport('${u.name}', '${u.id}')" class="w-full bg-gray-900 hover:bg-black text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all">
-                        <i class="fa-solid fa-file-pdf"></i> استخراج التقرير (A4)
-                    </button>
-                </div>` : ''}
-            </div>`).join(''); 
+                    <div class="mt-2 mb-3 grid grid-cols-2 gap-2">
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-2 text-xs font-bold text-gray-700 flex items-center justify-between">
+                            <span>استلم</span>
+                            <span class="bg-sky-600 text-white px-2 py-0.5 rounded-full">${assignedCount}</span>
+                        </div>
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-2 text-xs font-bold text-gray-700 flex items-center justify-between">
+                            <span>مصانة</span>
+                            <span class="bg-emerald-600 text-white px-2 py-0.5 rounded-full">${completedCount}</span>
+                        </div>
+                    </div>
+                    ${showActions ? `
+                    <div class="border-t pt-3 mt-3 space-y-3">
+                        <div class="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border">
+                            <div class="w-full">
+                                <span class="text-[10px] font-bold text-gray-500 block mb-1">من تاريخ:</span>
+                                <input type="date" id="tech-from-${u.id}" class="border rounded-lg px-2 py-1 text-xs font-bold w-full focus:outline-none">
+                            </div>
+                            <div class="w-full">
+                                <span class="text-[10px] font-bold text-gray-500 block mb-1">إلى تاريخ:</span>
+                                <input type="date" id="tech-to-${u.id}" class="border rounded-lg px-2 py-1 text-xs font-bold w-full focus:outline-none">
+                            </div>
+                        </div>
+                        ${(() => {
+                            if (loggedUser && loggedUser.role !== 'مهندس صيانة') {
+                                return `<button onclick="generateTechReport('${u.name}', '${u.id}')" class="w-full bg-gray-900 hover:bg-black text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all"><i class="fa-solid fa-file-pdf"></i> استخراج التقرير (A4)</button>`;
+                            }
+                            return `<button onclick="openTechAssignedOrdersModal('${u.name}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all"><i class="fa-solid fa-screwdriver-wrench"></i> عرض الأجهزة المصححة</button>`;
+                        })()}
+                    </div>` : ''}
+                </div>`;
+            }).join(''); 
         }
 
         // --- الدالة الجديدة الخاصة بالتقارير المجمعة ---
@@ -1375,6 +1948,135 @@
             triggerExportModal(htmlContent, 210, 297, `تقرير_${reportType}`, 'A4'); 
         }
 
+        function generateDailyAggregateReport() {
+            const fromDate = document.getElementById('general-from').value;
+            const toDate = document.getElementById('general-to').value;
+            const targetDates = fromDate || toDate ? getDateRange(fromDate || toDate, toDate || fromDate) : getDateRangeForAll();
+
+            const summary = targetDates.map(dateKey => {
+                const dateLabel = formatArabicDateLabel(dateKey);
+                const dayOrders = orders.filter(order => {
+                    const dateValue = order.date || order.deliveryDetails?.dateStr || '';
+                    if (!dateValue) return false;
+                    const orderDate = normalizeOrderDate(dateValue);
+                    return orderDate === dateKey;
+                });
+
+                const received = dayOrders.filter(o => ['NEW', 'IN_PROGRESS', 'WAITING_PART', 'READY', 'DAMAGED'].includes(o.status || 'NEW')).length;
+                const maintained = dayOrders.filter(o => ['READY', 'DELIVERED', 'REPLACED'].includes(o.status || '')).length;
+                const delivered = dayOrders.filter(o => o.status === 'DELIVERED').length;
+                const replaced = dayOrders.filter(o => o.status === 'REPLACED').length;
+
+                return { dateKey, dateLabel, received, maintained, delivered, replaced };
+            }).filter(item => item.received || item.maintained || item.delivered || item.replaced);
+
+            const htmlContent = `
+                <style>
+                    .a4-page{width:210mm;min-height:297mm;padding:15mm;box-sizing:border-box;background:white;font-family:'Cairo',sans-serif;}
+                    .hd-wrap{background:linear-gradient(to right, #4f46e5, #7c3aed);color:white;text-align:center;padding:15px;border-radius:10px 10px 0 0;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+                    .hd-wrap h2{margin:0;font-size:26px;font-weight:900;}
+                    .meta{margin:8px 0 0;font-size:12px;opacity:0.95;}
+                    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+                    .box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;font-weight:900;}
+                    .box .label{display:block;font-size:11px;color:#64748b;margin-bottom:8px;}
+                    .box .value{font-size:22px;}
+                    .tb-a4{width:100%;border-collapse:collapse;font-size:12px;}
+                    .tb-a4 th, .tb-a4 td{border:1px solid #cbd5e1;padding:10px;text-align:right;}
+                    .tb-a4 th{background:#4f46e5;color:white;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+                </style>
+                <div class="a4-page" dir="rtl">
+                    <div class="hd-wrap">
+                        <h2>تقرير يومي مجمع</h2>
+                        <p class="meta">نظام إدارة الصيانة المؤسسي المعتمد</p>
+                        <p class="meta">${(fromDate || toDate) ? `الفترة: ${fromDate || 'بداية العمل'} إلى ${toDate || 'اليوم'}` : 'جميع التواريخ'}</p>
+                    </div>
+                    <div class="stats">
+                        <div class="box"><span class="label">المستلمة</span><span class="value" style="color:#2563eb;">${summary.reduce((sum, item) => sum + item.received, 0)}</span></div>
+                        <div class="box"><span class="label">المصانة</span><span class="value" style="color:#059669;">${summary.reduce((sum, item) => sum + item.maintained, 0)}</span></div>
+                        <div class="box"><span class="label">المسلمة</span><span class="value" style="color:#1f2937;">${summary.reduce((sum, item) => sum + item.delivered, 0)}</span></div>
+                        <div class="box"><span class="label">بدل تالف</span><span class="value" style="color:#d97706;">${summary.reduce((sum, item) => sum + item.replaced, 0)}</span></div>
+                    </div>
+                    <table class="tb-a4">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المستلمة</th>
+                                <th>المصانة</th>
+                                <th>المسلمة</th>
+                                <th>بدل تالف</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${summary.length ? summary.map(item => `
+                                <tr>
+                                    <td>${item.dateLabel}</td>
+                                    <td>${item.received}</td>
+                                    <td>${item.maintained}</td>
+                                    <td>${item.delivered}</td>
+                                    <td>${item.replaced}</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="5" style="text-align:center; padding:15px; font-weight:bold;">لا توجد بيانات في هذه الفترة.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            triggerExportModal(htmlContent, 210, 297, 'تقرير_يومي_مجمع', 'A4');
+        }
+
+        function getDateRange(startDate, endDate) {
+            const dates = [];
+            if (!startDate && !endDate) return dates;
+            const start = startDate ? new Date(startDate) : new Date();
+            const end = endDate ? new Date(endDate) : new Date();
+            const current = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            const limit = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+            while (current <= limit) {
+                const yyyy = current.getFullYear();
+                const mm = String(current.getMonth() + 1).padStart(2, '0');
+                const dd = String(current.getDate()).padStart(2, '0');
+                dates.push(`${yyyy}-${mm}-${dd}`);
+                current.setDate(current.getDate() + 1);
+            }
+            return dates;
+        }
+
+        function getDateRangeForAll() {
+            if (!orders.length) return [];
+            const points = orders
+                .map(o => o.date || (o.deliveryDetails && o.deliveryDetails.dateStr ? o.deliveryDetails.dateStr.split(' - ')[0] : ''))
+                .filter(Boolean)
+                .map(normalizeOrderDate)
+                .filter(Boolean)
+                .sort();
+            if (!points.length) return [];
+            const min = new Date(points[0]);
+            const max = new Date(points[points.length - 1]);
+            return getDateRange(min.toISOString().slice(0, 10), max.toISOString().slice(0, 10));
+        }
+
+        function normalizeOrderDate(dateValue) {
+            if (!dateValue) return '';
+            if (typeof dateValue === 'string' && dateValue.includes('/')) {
+                const [y, m, d] = dateValue.split('/').map(Number);
+                if (y && m && d) return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            }
+            if (typeof dateValue === 'string' && dateValue.includes('-')) {
+                return dateValue.slice(0, 10);
+            }
+            const d = new Date(dateValue);
+            if (isNaN(d.getTime())) return '';
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function formatArabicDateLabel(dateKey) {
+            if (!dateKey) return 'غير محدد';
+            const [y, m, d] = dateKey.split('-').map(Number);
+            const date = new Date(y, (m || 1) - 1, d || 1);
+            return date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
         function generateTechReport(techName, userId) { 
             let fromDate = document.getElementById(`tech-from-${userId}`) ? document.getElementById(`tech-from-${userId}`).value : '';
             let toDate = document.getElementById(`tech-to-${userId}`) ? document.getElementById(`tech-to-${userId}`).value : '';
@@ -1392,12 +2094,96 @@
                 });
             }
 
-            const sumReady = techOrders.filter(o => o.status === 'READY' || o.status === 'DELIVERED').length; 
+            const totalReceived = techOrders.length;
+            const totalDone = techOrders.filter(o => ['READY', 'DELIVERED', 'REPLACED'].includes(o.status || '')).length;
             const periodText = (fromDate || toDate) ? `الفترة: ${fromDate || 'بداية العمل'} إلى ${toDate || 'حتى اليوم'}` : 'جميع الفترات';
 
-            let htmlContent = `<style>.a4-page{width:210mm;min-height:297mm;padding:15mm;box-sizing:border-box;background:white;} .hd-wrap{background:linear-gradient(to right, #1e293b, #334155);color:white;text-align:center;padding:15px;border-radius:10px 10px 0 0;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact;} .hd-wrap h2{margin:0;font-size:26px;font-weight:900;} .stats{display:flex;justify-content:space-between;background:#f8fafc;padding:15px;border-radius:8px;border:2px solid #e2e8f0;margin-bottom:20px;font-weight:900;font-size:15px;} .tb-a4{width:100%;border-collapse:collapse;font-size:12px;} .tb-a4 th, .tb-a4 td{border:1px solid #cbd5e1;padding:10px;text-align:right;} .tb-a4 th{background:#0288D1;color:white;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;}</style><div class="a4-page" dir="rtl"><div class="hd-wrap"><h2>تقرير أداء مهندس الصيانة</h2><p style="margin:5px 0 0; font-size:12px;">نظام إدارة الصيانة المؤسسي المعتمد</p><p style="margin:5px 0 0; font-size:13px; color:#93c5fd; font-weight:bold;">${periodText}</p></div><div class="stats"><div>👨‍🔧 المهندس: <span style="color:#0288D1;">${techName}</span></div><div>إجمالي المستلم: <span style="color:#0f172a;">${techOrders.length}</span></div><div style="color:#059669;">تم الإنجاز: ${sumReady}</div></div><table class="tb-a4"><thead><tr><th>رقم</th><th>الجهاز</th><th>السيريال</th><th>الجهة</th><th>العطل</th><th>الحالة</th></tr></thead><tbody>${techOrders.length > 0 ? techOrders.map(o => `<tr><td style="font-weight:bold;">#${o.id}</td><td>${o.brand || ''} ${o.model || ''}</td><td dir="ltr" style="color:#475569;">${o.serial||'بدون'}</td><td>${o.org||'فردي'}</td><td>${o.faults || ''}</td><td style="font-weight:bold; color:${o.status==='DELIVERED'?'#000':(o.status==='READY'?'#059669':'#0288D1')};">${o.statusText}</td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;">لا توجد سجلات صيانة في هذه الفترة</td></tr>`}</tbody></table></div>`; triggerExportModal(htmlContent, 210, 297, `تقرير_أداء_${techName.replace(/\s+/g, '_')}`, 'A4'); 
+            let htmlContent = `<style>.a4-page{width:210mm;min-height:297mm;padding:15mm;box-sizing:border-box;background:white;} .hd-wrap{background:linear-gradient(to right, #1e293b, #334155);color:white;text-align:center;padding:15px;border-radius:10px 10px 0 0;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact;} .hd-wrap h2{margin:0;font-size:26px;font-weight:900;} .stats{display:flex;justify-content:space-between;background:#f8fafc;padding:15px;border-radius:8px;border:2px solid #e2e8f0;margin-bottom:20px;font-weight:900;font-size:15px; gap:10px;} .stats .box{flex:1;text-align:center;background:white;border:1px solid #e2e8f0;border-radius:10px;padding:10px;} .tb-a4{width:100%;border-collapse:collapse;font-size:12px;} .tb-a4 th, .tb-a4 td{border:1px solid #cbd5e1;padding:10px;text-align:right;} .tb-a4 th{background:#0288D1;color:white;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;}</style><div class="a4-page" dir="rtl"><div class="hd-wrap"><h2>تقرير مهندس الصيانة</h2><p style="margin:5px 0 0; font-size:12px;">نظام إدارة الصيانة المؤسسي المعتمد</p><p style="margin:5px 0 0; font-size:13px; color:#93c5fd; font-weight:bold;">${periodText}</p></div><div class="stats"><div class="box"><div style="font-size:12px;color:#64748b;">👨‍🔧 المهندس</div><div style="font-size:16px;color:#0288D1; margin-top:4px;">${techName}</div></div><div class="box"><div style="font-size:12px;color:#64748b;">الطلبات المستلمة</div><div style="font-size:22px;color:#0f172a; margin-top:4px;">${totalReceived}</div></div><div class="box"><div style="font-size:12px;color:#64748b;">تمت صيانتها</div><div style="font-size:22px;color:#059669; margin-top:4px;">${totalDone}</div></div></div><table class="tb-a4"><thead><tr><th>رقم</th><th>الجهاز</th><th>السيريال</th><th>الجهة</th><th>العطل</th><th>الحالة</th></tr></thead><tbody>${techOrders.length > 0 ? techOrders.map(o => `<tr><td style="font-weight:bold;">#${o.id}</td><td>${o.brand || ''} ${o.model || ''}</td><td dir="ltr" style="color:#475569;">${o.serial||'بدون'}</td><td>${o.org||'فردي'}</td><td>${o.faults || ''}</td><td style="font-weight:bold; color:${o.status==='DELIVERED'?'#000':(o.status==='READY'?'#059669':'#0288D1')};">${o.statusText}</td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;">لا توجد سجلات صيانة في هذه الفترة</td></tr>`}</tbody></table></div>`; triggerExportModal(htmlContent, 210, 297, `تقرير_مهندس_${techName.replace(/\s+/g, '_')}`, 'A4'); 
         }
         
+        function getRoleActivityEntries() {
+            const entries = [...(Array.isArray(auditLog) ? auditLog : [])]
+                .filter(Boolean)
+                .sort((a, b) => new Date(b.time || b.timestamp || 0) - new Date(a.time || a.timestamp || 0));
+
+            if (!loggedUser) return entries.slice(0, 8);
+
+            if (loggedUser.role === 'مهندس صيانة') {
+                const techName = (loggedUser.name || '').trim();
+                return entries.filter(entry => {
+                    const userName = (entry.user || '').toString().trim();
+                    const message = (entry.message || '').toString();
+                    return userName === techName || message.includes(techName) || (entry.action === 'ASSIGN' && message.includes('مهندس'));
+                }).slice(0, 8);
+            }
+
+            if (loggedUser.role === 'موظف استقبال') {
+                return entries.slice(0, 8);
+            }
+
+            return entries.slice(0, 5);
+        }
+
+        function openAllActivityModal() {
+            const entries = getRoleActivityEntries();
+            const modal = document.getElementById('modal-all-activities');
+            if (!modal) return;
+            const listEl = document.getElementById('all-activities-list');
+            if (!listEl) return;
+
+            listEl.innerHTML = entries.length ? entries.map(entry => `
+                <div class="flex items-start gap-3 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                    <div class="bg-sky-100 text-primary w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-bolt"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold text-gray-700">${entry.message || 'تحديث جديد'}</div>
+                        <div class="text-[10px] text-gray-500 mt-1">${entry.user || 'النظام'} • ${new Date(entry.time || entry.timestamp || Date.now()).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                    </div>
+                </div>
+            `).join('') : '<div class="text-center text-sm text-gray-500 py-8">لا توجد أنشطة حديثة.</div>';
+
+            openModal('modal-all-activities');
+        }
+
+        function renderRoleActivityPanel() {
+            const panel = document.getElementById('role-activity-panel');
+            if (!panel) return;
+
+            if (!loggedUser || !['مهندس صيانة', 'موظف استقبال'].includes(loggedUser.role)) {
+                panel.classList.add('hidden');
+                panel.innerHTML = '';
+                return;
+            }
+
+            const activity = getRoleActivityEntries();
+            if (!activity.length) {
+                panel.classList.add('hidden');
+                panel.innerHTML = '';
+                return;
+            }
+
+            const recent = activity.slice(0, 3);
+            panel.classList.remove('hidden');
+            panel.innerHTML = `
+                <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-extrabold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-primary"></i> آخر النشاطات</h4>
+                        <button type="button" onclick="openAllActivityModal()" class="text-[10px] font-bold text-primary hover:text-primaryDark">عرض الكل (${activity.length})</button>
+                    </div>
+                    <div class="space-y-3">
+                        ${recent.map(entry => `
+                            <div class="flex items-start gap-3 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0">
+                                <div class="bg-sky-100 text-primary w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-bolt"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs font-bold text-gray-700">${entry.message || 'تحديث جديد'}</div>
+                                    <div class="text-[10px] text-gray-500 mt-1">${entry.user || 'النظام'} • ${new Date(entry.time || entry.timestamp || Date.now()).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
         function renderCharts() { if(loggedUser && loggedUser.role !== 'مدير نظام') return; const fd = document.getElementById('chart-date-from').value; const td = document.getElementById('chart-date-to').value; let filteredOrders = orders; if(fd || td) { filteredOrders = orders.filter(o => { if(!o.timestamp) return false; const od = new Date(o.timestamp); od.setHours(0,0,0,0); let p = true; if(fd) { const fdd = new Date(fd); fdd.setHours(0,0,0,0); if(od < fdd) p = false; } if(td) { const tdd = new Date(td); tdd.setHours(0,0,0,0); if(od > tdd) p = false; } return p; }); } const brandCounts = {}; filteredOrders.forEach(o => { let b = o.brand || 'أخرى'; brandCounts[b] = (brandCounts[b] || 0) + 1; }); const ctx = document.getElementById('devicesChart'); if(!ctx) return; if(dashboardChart) dashboardChart.destroy(); dashboardChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: Object.keys(brandCounts).length ? Object.keys(brandCounts) : ['لا توجد بيانات'], datasets: [{ label: 'عدد الأجهزة المصانة حسب الماركة', data: Object.keys(brandCounts).length ? Object.values(brandCounts) : [0], backgroundColor: '#0288D1', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } }); }
         function renderDashboard() { const container = document.getElementById('kpi-grid'); if(container) { const counts = {
                 NEW: orders.filter(o => o.status === 'NEW' || !o.status).length,
@@ -1417,6 +2203,28 @@
                 { label: 'تم التسليم', value: counts.DELIVERED, color: 'bg-indigo-600', icon: 'fa-check-double' },
                 { label: 'تم صرف بديل', value: counts.REPLACED, color: 'bg-violet-600', icon: 'fa-right-left' }
             ];
+
+            const recentActivity = (auditLog.length ? auditLog : [{ message: 'لا توجد حركة حديثة بعد', time: new Date().toISOString() }]).slice(0, 3);
+            const activityHtml = `
+                <div class="col-span-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-extrabold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-primary"></i> آخر النشاطات</h4>
+                        <button type="button" onclick="openAllActivityModal()" class="text-[10px] font-bold text-primary hover:text-primaryDark">عرض الكل (${Math.max(auditLog.length, 0)})</button>
+                    </div>
+                    <div class="space-y-3">
+                        ${recentActivity.map(entry => `
+                            <div class="flex items-start gap-3 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0">
+                                <div class="bg-sky-100 text-primary w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-bolt"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs font-bold text-gray-700">${entry.message}</div>
+                                    <div class="text-[10px] text-gray-500 mt-1">${entry.user || 'النظام'} • ${new Date(entry.time || entry.timestamp || Date.now()).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
             container.innerHTML = cards.map(item => `
                 <div class="${item.color} text-white p-4 rounded-2xl shadow-md h-28 flex flex-col justify-between">
                     <div class="flex justify-between items-start">
@@ -1425,14 +2233,14 @@
                     </div>
                     <div class="text-3xl font-extrabold">${item.value}</div>
                 </div>
-            `).join('');
+            `).join('') + activityHtml;
         } setTimeout(renderCharts, 100); }
         function openScannerModal() { openModal('modal-scanner'); html5QrCodeScanner = new Html5QrcodeScanner("qr-reader", {fps:10, qrbox:{width:220,height:100}}, false); html5QrCodeScanner.render(onScanSuccess, ()=>{}); }
         function onScanSuccess(t) { let id = t.replace(/[^0-9]/g, ''); if(id){ closeScannerModal(); const o = orders.find(x => x.id.toString() === id.toString()); if(o){ if(o.status === 'DELIVERED' || o.status === 'REPLACED') openDeliveredViewModal(o.id); else openUpdateOrderModal(o.id); }else alert('⚠️ لم يتم العثور على تذكرة.'); } }
         function closeScannerModal() { if(html5QrCodeScanner){ html5QrCodeScanner.clear(); html5QrCodeScanner=null; } closeModal('modal-scanner'); }
         
         function updateBadges() { document.getElementById('badge-orders-count').innerText = orders.filter(o=>o.status!=='DELIVERED' && o.status!=='REPLACED').length; document.getElementById('badge-delivered-count').innerText = orders.filter(o=>o.status==='DELIVERED' || o.status==='REPLACED').length; }
-        function renderAll() { updateBadges(); renderDashboard(); renderOrders(); renderDelivered(); renderTechnicians(); }
+        function renderAll() { updateBadges(); renderDashboard(); renderOrders(); renderDelivered(); renderTechnicians(); toggleTechReportPanel(); renderRoleActivityPanel(); }
         
         document.addEventListener('click', function(event) {
             const sidebar = document.getElementById('main-sidebar');
@@ -1454,11 +2262,13 @@
         });
 
         window.onload = () => { 
+            loggedUser = restoreSavedUser();
             checkAuth(); 
             if(loggedUser) {
-                document.getElementById('global-loader').classList.remove('hidden');
+                const loader = document.getElementById('global-loader');
+                if (loader) loader.classList.remove('hidden');
+                startCloudSyncLoop();
                 fetchFromCloud(false);
-                setInterval(() => { if(loggedUser) fetchFromCloud(true); }, 10000);
             }
             const backdrop = document.getElementById('sidebar-backdrop');
             if (backdrop) {
