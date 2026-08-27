@@ -363,11 +363,16 @@
                     <div><label class="block text-xs font-extrabold text-red-700 mb-1">الأعطال / المشكلة <span class="text-red-500">*</span></label><textarea id="ord-faults" rows="2" placeholder="تفاصيل العطل بدقة..." class="w-full border-2 border-red-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-red-500"></textarea></div>
                 </div>
                 
-                <div class="pt-3">
+                <div class="pt-3 grid grid-cols-2 gap-2">
+                    <button type="button" onclick="addPendingItem()" id="add-to-pending-btn" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 rounded-xl transition-all shadow-lg text-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus"></i> أضف إلى القائمة
+                    </button>
                     <button type="button" onclick="submitOrderForm(this)" class="w-full bg-primary hover:bg-primaryDark text-white font-extrabold py-3 rounded-xl transition-all shadow-lg text-sm flex items-center justify-center gap-2">
                         <i class="fa-solid fa-share-from-square"></i> حفظ وإنشاء ملصق (5×3)
                     </button>
                 </div>
+
+                <div id="pending-items-list" class="mt-3 space-y-2"></div>
             </form>
         </div>
     </div>
@@ -1199,42 +1204,131 @@
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
 
+        // Pending items list inside the "إستلام وصيانة" modal
+        let modalPendingItems = [];
+
+        function addPendingItem() {
+            const t = document.getElementById('entry-type-val').value;
+            const o = document.getElementById('ord-org').value.trim();
+            const f = document.getElementById('ord-faults').value.trim();
+            const dateInput = document.getElementById('ord-date') ? document.getElementById('ord-date').value : '';
+            if (!o || !f) { alert('⚠️ يرجى تعبئة (الجهة) و (الأعطال/المشكلة) قبل الإضافة إلى القائمة'); return; }
+
+            if (t === 'DEVICE') {
+                const brandVal = document.getElementById('ord-brand').value || 'غير محدد';
+                const modelVal = document.getElementById('ord-model').value.trim();
+                if(!modelVal) { alert('⚠️ يرجى تعبئة (الطراز والموديل) الخاص بالجهاز قبل الإضافة'); return; }
+                const serial = document.getElementById('ord-serial').value || '';
+                modalPendingItems.push({ entryType: 'DEVICE', brand: brandVal, model: modelVal, serial: serial, org: o, customer: document.getElementById('ord-customer').value || '', faults: f, date: formatReceiptDateInput(dateInput) });
+            } else {
+                const at = document.getElementById('acc-type-select').value || 'توابع';
+                const q = parseInt(document.getElementById('acc-qty').value) || 1;
+                for (let i = 0; i < q; i++) {
+                    modalPendingItems.push({ entryType: 'ACCESSORY', brand: at, model: `قطعة ${i+1}`, serial: '', org: o, customer: document.getElementById('ord-customer').value || '', faults: f, date: formatReceiptDateInput(dateInput) });
+                }
+            }
+
+            renderPendingItemsList();
+        }
+
+        function renderPendingItemsList() {
+            const el = document.getElementById('pending-items-list');
+            if (!el) return;
+            if (modalPendingItems.length === 0) {
+                el.innerHTML = '<div class="text-xs text-gray-500">لا توجد عناصر في القائمة بعد.</div>';
+                return;
+            }
+
+            el.innerHTML = modalPendingItems.map((it, idx) => `
+                <div class="p-2 border rounded-xl flex justify-between items-center bg-white">
+                    <div class="text-xs text-right">
+                        <div class="font-bold">${it.entryType === 'DEVICE' ? `جهاز: ${it.brand} ${it.model}` : `تابع: ${it.brand} ${it.model}`}</div>
+                        <div class="text-[11px] text-gray-500">${it.org || 'غير محدد'} • ${it.date || ''} ${it.serial ? ' • ' + it.serial : ''}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="removePendingItem(${idx})" class="text-red-500 text-xs font-bold">حذف</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function removePendingItem(index) {
+            modalPendingItems.splice(index, 1);
+            renderPendingItemsList();
+        }
+
         function openAddOrderModal() { 
             const selectEl = document.getElementById('ord-brand'); if(selectEl) selectEl.innerHTML = brandsList.map(b => `<option value="${b}">${b}</option>`).join(''); 
             const dateInput = document.getElementById('ord-date');
             if (dateInput) dateInput.value = getDateInputValueForToday();
-            refreshAccessorySelectOptions(); refreshOrgSelectOptions(); toggleEntryType('DEVICE'); openModal('modal-add-order'); 
+            refreshAccessorySelectOptions(); refreshOrgSelectOptions(); toggleEntryType('DEVICE');
+            modalPendingItems = [];
+            renderPendingItemsList();
+            openModal('modal-add-order'); 
         }
         
         async function submitOrderForm(btnElement) {
             try {
                 if(btnElement) { btnElement.disabled = true; btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...'; }
-                const t = document.getElementById('entry-type-val').value;
-                const o = document.getElementById('ord-org').value.trim();
-                const f = document.getElementById('ord-faults').value.trim();
-                const modelVal = document.getElementById('ord-model').value.trim();
-                const receiptDateValue = document.getElementById('ord-date') ? document.getElementById('ord-date').value : '';
 
-                if (!o || !f) { alert('⚠️ يرجى تعبئة الحقول الإلزامية: (الجهة) و (الأعطال/المشكلة)'); return; }
-                if (t === 'DEVICE' && !modelVal) { alert('⚠️ يرجى تعبئة (الطراز والموديل) الخاص بالجهاز'); return; }
-
-                const ds = formatReceiptDateInput(receiptDateValue);
                 currentPrintBatch = [];
                 const ts = new Date().getTime();
                 const createdItems = [];
 
-                if(t === 'DEVICE'){
-                    const generatedIds = getNextOrderIds(1);
-                    const brandVal = document.getElementById('ord-brand').value || 'غير محدد';
-                    const n = { id: generatedIds[0], entryType: 'DEVICE', brand: brandVal, model: modelVal, serial: document.getElementById('ord-serial').value || '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts, updatedAt: ts, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
-                    createdItems.push(n);
+                if (modalPendingItems && modalPendingItems.length > 0) {
+                    // Use pending items added to the modal
+                    const total = modalPendingItems.length;
+                    const generatedIds = getNextOrderIds(total);
+                    for (let i = 0; i < total; i++) {
+                        const p = modalPendingItems[i];
+                        const id = generatedIds[i];
+                        const item = {
+                            id: id,
+                            entryType: p.entryType,
+                            brand: p.brand || (p.entryType === 'ACCESSORY' ? 'توابع' : 'غير محدد'),
+                            model: p.model || '',
+                            serial: p.serial || '',
+                            org: p.org || '',
+                            customer: p.customer || '',
+                            phone: '',
+                            faults: p.faults || '',
+                            date: p.date || '',
+                            timestamp: ts + i,
+                            updatedAt: ts + i,
+                            status: 'NEW',
+                            statusText: '✨ جديد',
+                            assignedTech: null,
+                            notes: '',
+                            deliveryDetails: null
+                        };
+                        createdItems.push(item);
+                    }
                 } else {
-                    const at = document.getElementById('acc-type-select').value || 'توابع';
-                    const q = parseInt(document.getElementById('acc-qty').value) || 1;
-                    const generatedIds = getNextOrderIds(q);
-                    for (let i = 0; i < q; i++) {
-                        const n = { id: generatedIds[i], entryType: 'ACCESSORY', brand: at, model: `قطعة ${i + 1}`, serial: '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts + i, updatedAt: ts + i, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
+                    // Fallback to single-item form behavior
+                    const t = document.getElementById('entry-type-val').value;
+                    const o = document.getElementById('ord-org').value.trim();
+                    const f = document.getElementById('ord-faults').value.trim();
+                    const modelVal = document.getElementById('ord-model').value.trim();
+                    const receiptDateValue = document.getElementById('ord-date') ? document.getElementById('ord-date').value : '';
+
+                    if (!o || !f) { alert('⚠️ يرجى تعبئة الحقول الإلزامية: (الجهة) و (الأعطال/المشكلة)'); return; }
+                    if (t === 'DEVICE' && !modelVal) { alert('⚠️ يرجى تعبئة (الطراز والموديل) الخاص بالجهاز'); return; }
+
+                    const ds = formatReceiptDateInput(receiptDateValue);
+
+                    if(t === 'DEVICE'){
+                        const generatedIds = getNextOrderIds(1);
+                        const brandVal = document.getElementById('ord-brand').value || 'غير محدد';
+                        const n = { id: generatedIds[0], entryType: 'DEVICE', brand: brandVal, model: modelVal, serial: document.getElementById('ord-serial').value || '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts, updatedAt: ts, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
                         createdItems.push(n);
+                    } else {
+                        const at = document.getElementById('acc-type-select').value || 'توابع';
+                        const q = parseInt(document.getElementById('acc-qty').value) || 1;
+                        const generatedIds = getNextOrderIds(q);
+                        for (let i = 0; i < q; i++) {
+                            const n = { id: generatedIds[i], entryType: 'ACCESSORY', brand: at, model: `قطعة ${i + 1}`, serial: '', org: o, customer: document.getElementById('ord-customer').value || '', phone: '', faults: f, date: ds, timestamp: ts + i, updatedAt: ts + i, status: 'NEW', statusText: '✨ جديد', assignedTech: null, notes: '', deliveryDetails: null };
+                            createdItems.push(n);
+                        }
                     }
                 }
 
@@ -1248,6 +1342,8 @@
                 saveState();
                 closeModal('modal-add-order');
                 document.getElementById('form-add-order').reset();
+                modalPendingItems = [];
+                renderPendingItemsList();
                 renderAll();
                 prepareLabelExport();
                 
