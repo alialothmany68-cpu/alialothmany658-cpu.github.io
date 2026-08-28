@@ -1,20 +1,4 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة الصيانة - Enterprise v11.5 (Cloud Sync)</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script>
+
         tailwind.config = {
             theme: { extend: { fontFamily: { cairo: ['Cairo', 'sans-serif'] }, colors: { primary: '#0288D1', primaryDark: '#01579B', bgLight: '#F8FAFC' } } }
         }
@@ -150,15 +134,10 @@
     <div id="print-area"></div>
     <div id="sidebar-backdrop" class="hidden md:hidden"></div>
 
-    <div id="global-loader" class="fixed inset-0 bg-slate-950/40 z-[200] hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="w-full max-w-md rounded-[28px] bg-white/95 border border-sky-100 shadow-2xl p-6 text-center">
-            <div class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-sky-100 via-white to-primary/10 shadow-inner border-4 border-sky-100">
-                <div class="spinner h-12 w-12 border-[4px] border-sky-200 border-l-primary"></div>
-            </div>
-            <div id="global-loader-greeting" class="text-sm font-bold text-primary mb-2">مرحباً</div>
-            <h2 id="global-loader-title" class="text-xl font-extrabold text-slate-800">جاري مزامنة البيانات...</h2>
-            <p id="global-loader-subtitle" class="text-xs text-slate-500 mt-2 font-bold">يتم جلب آخر التحديثات من قاعدة البيانات</p>
-        </div>
+    <div id="global-loader" class="fixed inset-0 bg-white/95 z-[200] flex flex-col items-center justify-center hidden backdrop-blur-sm">
+        <div class="spinner mb-4"></div>
+        <h2 class="text-lg font-extrabold text-primary">جاري الاتصال بقاعدة البيانات...</h2>
+        <p class="text-xs text-gray-500 mt-1 font-bold">يرجى الانتظار لحين جلب التحديثات من السحابة</p>
     </div>
 
     <div id="manual-sync-modal" class="fixed inset-0 bg-black/45 z-[220] hidden items-center justify-center p-4">
@@ -225,18 +204,12 @@
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="kpi-grid"></div>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                     <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-3 border-b pb-3">
-                        <h3 class="font-extrabold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-chart-column text-primary"></i> تحليل الأجهزة والتوابع</h3>
+                        <h3 class="font-extrabold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-chart-column text-primary"></i> تحليل الأجهزة الأكثر صيانة</h3>
                         <div class="flex gap-2 items-center bg-gray-50 p-1.5 rounded-xl border">
                             <span class="text-[10px] font-bold text-gray-500">من:</span><input type="date" id="chart-date-from" onchange="renderCharts()" class="border rounded-lg px-2 py-1 text-xs font-bold focus:outline-none">
                             <span class="text-[10px] font-bold text-gray-500">إلى:</span><input type="date" id="chart-date-to" onchange="renderCharts()" class="border rounded-lg px-2 py-1 text-xs font-bold focus:outline-none">
                             <button onclick="document.getElementById('chart-date-from').value=''; document.getElementById('chart-date-to').value=''; renderCharts();" class="text-red-500 text-xs px-1" title="مسح الفلتر"><i class="fa-solid fa-times"></i></button>
                         </div>
-                    </div>
-                    <div class="flex flex-wrap gap-2 mb-4">
-                        <button type="button" data-chart-mode="MOST_MAINTAINED" class="chart-mode-btn px-3 py-1.5 rounded-xl text-[10px] font-extrabold border bg-primary text-white border-primary">الأكثر صيانة</button>
-                        <button type="button" data-chart-mode="MOST_REPAIRED" class="chart-mode-btn px-3 py-1.5 rounded-xl text-[10px] font-bold border bg-white text-gray-700 border-gray-200">الأكثر إصلاح</button>
-                        <button type="button" data-chart-mode="READY" class="chart-mode-btn px-3 py-1.5 rounded-xl text-[10px] font-bold border bg-white text-gray-700 border-gray-200">جاهز للتسليم</button>
-                        <button type="button" data-chart-mode="DELIVERED" class="chart-mode-btn px-3 py-1.5 rounded-xl text-[10px] font-bold border bg-white text-gray-700 border-gray-200">تم التسليم</button>
                     </div>
                     <div class="relative w-full h-64"><canvas id="devicesChart"></canvas></div>
                 </div>
@@ -354,14 +327,7 @@
                 
                 <div id="fields-device" class="space-y-3">
                     <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">الماركة</label>
-                            <div class="flex gap-2 items-center">
-                                <input type="text" id="ord-brand" list="ord-brand-list" placeholder="اكتب أو اختر الماركة" class="w-full border rounded-xl px-3 py-2 text-sm focus:border-primary font-bold bg-white">
-                                <button type="button" onclick="addNewBrandInline('ord-brand')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-extrabold px-2.5 py-2 rounded-xl whitespace-nowrap">إضافة ماركة</button>
-                            </div>
-                            <datalist id="ord-brand-list"></datalist>
-                        </div>
+                        <div><label class="block text-xs font-bold text-gray-600 mb-1">الماركة</label><select id="ord-brand" class="w-full border rounded-xl px-3 py-2 text-sm focus:border-primary font-bold"></select></div>
                         <div><label class="block text-xs font-bold text-gray-600 mb-1">الطراز والموديل</label><input type="text" id="ord-model" placeholder="مثال: 14 Pro Max" class="w-full border rounded-xl px-3 py-2 text-sm focus:border-primary font-bold"></div>
                     </div>
                     <div><label class="block text-xs font-bold text-gray-600 mb-1">الرقم التسلسلي (SN / IMEI)</label><input type="text" id="ord-serial" placeholder="SN-..." class="w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-1.5 text-xs font-bold text-left" dir="ltr"></div>
@@ -369,14 +335,7 @@
                 
                 <div id="fields-accessory" class="space-y-3 hidden bg-amber-50/60 p-3 rounded-2xl border border-amber-200">
                     <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-amber-900 mb-1">نوع التابع</label>
-                            <div class="flex gap-2 items-center">
-                                <input type="text" id="acc-type-select" list="acc-type-list" placeholder="اكتب أو اختر نوع التابع" class="w-full border rounded-xl px-3 py-2 text-sm font-extrabold text-amber-900 bg-white">
-                                <button type="button" onclick="addNewAccessoryTypeInline('acc-type-select')" class="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-extrabold px-2.5 py-2 rounded-xl whitespace-nowrap">إضافة نوع</button>
-                            </div>
-                            <datalist id="acc-type-list"></datalist>
-                        </div>
+                        <div><label class="block text-xs font-bold text-amber-900 mb-1">نوع التابع</label><select id="acc-type-select" class="w-full border rounded-xl px-3 py-2 text-sm font-extrabold text-amber-900 bg-white"></select></div>
                         <div><label class="block text-xs font-extrabold text-red-600 mb-1">العدد (للتفكيك)</label><input type="number" id="acc-qty" min="1" max="50" value="1" class="w-full border-2 border-red-400 rounded-xl px-3 py-2 text-sm font-extrabold text-center text-red-600 bg-white"></div>
                     </div>
                 </div>
@@ -556,7 +515,7 @@
         const API_URL = "https://script.google.com/macros/s/AKfycby4b8G3bnQ9HSyHc8F6EJSUcxtbAVyQHwHmyAdrXgp76LqlrBefVSmYIFBFyjyzUOFUdQ/exec";
 
         const defaultOrders = [];
-        const defaultUsers = [{ id: 1, name: 'مدير النظام', username: 'admin', pin: 'adminali', role: 'مدير نظام' }, { id: 2, name: 'استقبال', username: 'rec', pin: '123', role: 'موظف استقبال' }, { id: 3, name: 'م. عبدالغني', username: 'tech1', pin: '123', role: 'مهندس صيانة' }, { id: 4, name: 'م. عمار', username: 'tech2', pin: '123', role: 'مهندس صيانة' }];
+        const defaultUsers = [{ id: 1, name: 'مدير النظام', username: 'admin', pin: 'admin', role: 'مدير نظام' }, { id: 2, name: 'استقبال', username: 'rec', pin: '123', role: 'موظف استقبال' }, { id: 3, name: 'م. عبدالغني', username: 'tech1', pin: '123', role: 'مهندس صيانة' }, { id: 4, name: 'م. عمار', username: 'tech2', pin: '123', role: 'مهندس صيانة' }];
         const defaultBrands = ['آبل', 'سامسونج', 'شاومي'];
         const defaultCS = [{ id: 1, name: 'الجفينة', phone: '777', type: 'عميل' }];
         const defaultAccTypes = ['بطاريات', 'شاشات', 'لوحات أم', 'قطع تالفة'];
@@ -805,7 +764,7 @@
 
         auditLog = getAuditLog();
         
-        let currentOrderFilter = 'ALL'; let currentPrintBatch = []; let html5QrCodeScanner = null; let dashboardChart = null; let currentChartMode = 'MOST_MAINTAINED';
+        let currentOrderFilter = 'ALL'; let currentPrintBatch = []; let html5QrCodeScanner = null; let dashboardChart = null; 
         let exportTypeContext = ''; let exportWidthMm = 0; let exportHeightMm = 0; let exportFilename = 'export';
         let currentDeliveryAction = 'DELIVER'; 
         let selectedReadyDeliveryIds = [];
@@ -888,13 +847,11 @@
             if (!API_URL || API_URL.includes("ضع_الرابط")) {
                 if(!isBackground) {
                     const loader = document.getElementById('global-loader');
-                    if (loader) {
-                        loader.classList.add('hidden');
-                        loader.classList.remove('flex');
-                    }
+                    if (loader) loader.classList.add('hidden');
                 }
                 return;
-            }            if (cloudSyncInFlight) return;
+            }
+            if (cloudSyncInFlight) return;
 
             cloudSyncInFlight = true;
             const syncIcon = document.getElementById('sync-icon');
@@ -963,10 +920,7 @@
                 cloudSyncInFlight = false;
                 if(!isBackground) {
                     const loader = document.getElementById('global-loader');
-                    if (loader) {
-                        loader.classList.add('hidden');
-                        loader.classList.remove('flex');
-                    }
+                    if (loader) loader.classList.add('hidden');
                 }
             }
         }
@@ -1090,22 +1044,23 @@
             }
         }
         
-        function refreshBrandInputOptions(defaultValue = '') {
-            const brandInput = document.getElementById('ord-brand');
-            if (!brandInput) return;
-            bindStringListDatalist(brandInput, brandsList, 'اكتب أو اختر الماركة', defaultValue || brandInput.dataset.currentValue || '');
-        }
-
         function refreshAccessorySelectOptions() {
-            const accInput = document.getElementById('acc-type-select');
-            if (!accInput) return;
-            bindStringListDatalist(accInput, accTypesList, 'اكتب أو اختر نوع التابع', accInput.dataset.currentValue || '');
-        }
+            const accSelect = document.getElementById('acc-type-select');
+            if (!accSelect) return;
 
-        function refreshAccessoryTypeInputOptions(defaultValue = '') {
-            const accInput = document.getElementById('acc-type-select');
-            if (!accInput) return;
-            bindStringListDatalist(accInput, accTypesList, 'اكتب أو اختر نوع التابع', defaultValue || accInput.dataset.currentValue || '');
+            if (!accTypesList || accTypesList.length === 0) {
+                accSelect.innerHTML = '<option value="">لا توجد أصناف توابع</option>';
+                accSelect.disabled = true;
+                return;
+            }
+
+            accSelect.disabled = false;
+            accSelect.innerHTML = accTypesList.map(a => `<option value="${a}">📦 ${a}</option>`).join('');
+            const currentValue = accSelect.dataset.currentValue || '';
+            if (currentValue && accTypesList.includes(currentValue)) {
+                accSelect.value = currentValue;
+            }
+            accSelect.dataset.currentValue = accSelect.value;
         }
 
         function toggleEntryType(type) { 
@@ -1182,32 +1137,22 @@
             const aB = document.getElementById('action-header-btn');
             const addBtn = document.getElementById('add-order-header-btn');
             const tC = document.getElementById('tabs-container');
-            const nDelivery = document.getElementById('nav-delivery');
-            const nArchive = document.getElementById('nav-delivered');
+            const nDel = document.getElementById('nav-delivered');
             const nSet = document.getElementById('nav-settings');
             const nDash = document.getElementById('nav-dashboard');
             const nTech = document.getElementById('nav-technicians');
             const navOrders = document.getElementById('nav-orders');
 
             if (loggedUser.role === 'مهندس صيانة') {
-               aB.classList.remove('hidden');
-               if (addBtn) addBtn.classList.add('hidden');
-               if (nDelivery) nDelivery.classList.add('hidden');
-               if (nArchive) nArchive.classList.add('hidden');
-               nSet.classList.add('hidden');
-               if (nDash) nDash.classList.remove('hidden');
+                aB.classList.remove('hidden');
+                if (addBtn) addBtn.classList.add('hidden');
+                nDel.classList.add('hidden');
+                nSet.classList.add('hidden');
+                if (nDash) nDash.classList.add('hidden');
                if (nTech) nTech.classList.remove('hidden');
-               if (navOrders) navOrders.classList.add('active');
+                if (navOrders) navOrders.classList.add('active');
                 if (tC) {
-                    tC.innerHTML = `
-                        <button data-filter="TECH_POOL" onclick="filterOrders('TECH_POOL', this)" class="tab-btn active flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-extrabold bg-amber-500 text-white border-amber-500">
-                            <span>متاح للاستلام</span>
-                            <span data-role="count" class="min-w-[1.7rem] h-6 flex items-center justify-center rounded-full bg-white/20 text-[11px] px-1.5">0</span>
-                        </button>
-                        <button data-filter="MY_ORDERS" onclick="filterOrders('MY_ORDERS', this)" class="tab-btn flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-bold bg-white text-gray-700 border-gray-200">
-                            <span>عهدتي</span>
-                            <span data-role="count" class="min-w-[1.7rem] h-6 flex items-center justify-center rounded-full bg-gray-100 text-[11px] px-1.5 text-gray-700">0</span>
-                        </button>`;
+                    tC.innerHTML = `<button onclick="filterOrders('TECH_POOL', this)" class="tab-btn active px-4 py-1.5 rounded-xl border text-sm font-extrabold bg-amber-500 text-white border-amber-500">متاح للاستلام</button><button onclick="filterOrders('MY_ORDERS', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">عهدتي</button>`;
                 }
                 currentOrderFilter = 'TECH_POOL';
                 if (navOrders) {
@@ -1216,105 +1161,52 @@
             } else {
                 aB.classList.remove('hidden');
                 if (addBtn) addBtn.classList.remove('hidden');
-                if (nDelivery) nDelivery.classList.remove('hidden');
-                if (nArchive) nArchive.classList.remove('hidden');
+                nDel.classList.remove('hidden');
                 if (nDash) nDash.classList.remove('hidden');
                 if (nTech) nTech.classList.remove('hidden');
                 if(loggedUser.role === 'مدير نظام') nSet.classList.remove('hidden'); else nSet.classList.add('hidden');
                 if (tC) {
                     tC.innerHTML = `
-                        <button data-filter="ALL" onclick="filterOrders('ALL', this)" class="tab-btn active flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-bold bg-primary text-white border-primary">
-                            <span>الكل</span>
-                            <span data-role="count" class="min-w-[1.7rem] h-6 flex items-center justify-center rounded-full bg-white/20 text-[11px] px-1.5">0</span>
-                        </button>
-                        <button data-filter="NEW" onclick="filterOrders('NEW', this)" class="tab-btn flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-bold bg-white text-gray-700 border-gray-200">
-                            <span>جديد</span>
-                            <span data-role="count" class="min-w-[1.7rem] h-6 flex items-center justify-center rounded-full bg-sky-100 text-[11px] px-1.5 text-sky-700">0</span>
-                        </button>
-                        <button data-filter="IN_PROGRESS" onclick="filterOrders('IN_PROGRESS', this)" class="tab-btn flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-bold bg-white text-gray-700 border-gray-200">
-                            <span>قيد العمل</span>
-                            <span data-role="count" class="min-w-[1.7rem] h-6 flex items-center justify-center rounded-full bg-amber-100 text-[11px] px-1.5 text-amber-700">0</span>
-                        </button>
-                        <button data-filter="WAITING_PART" onclick="filterOrders('WAITING_PART', this)" class="tab-btn flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-bold bg-white text-gray-700 border-gray-200">
-                            <span>بانتظار قطعة</span>
-                            <span data-role="count" class="min-w-[1.7rem] h-6 flex items-center justify-center rounded-full bg-orange-100 text-[11px] px-1.5 text-orange-700">0</span>
-                        </button>
-                        <button data-filter="READY" onclick="filterOrders('READY', this)" class="tab-btn flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-extrabold bg-emerald-100 text-emerald-800 border-emerald-300">
-                            <span>جاهز للتسليم</span>
-                            <span data-role="count" class="min-w-[1.7rem] h-6 flex items-center justify-center rounded-full bg-emerald-200 text-[11px] px-1.5 text-emerald-800">0</span>
-                        </button>
-                        <button data-filter="DAMAGED" onclick="filterOrders('DAMAGED', this)" class="tab-btn flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-bold bg-white text-red-600 border-red-200">
-                            <span>تالف</span>
-                            <span data-role="count" class="min-w-[1.7rem] h-6 flex items-center justify-center rounded-full bg-red-100 text-[11px] px-1.5 text-red-700">0</span>
-                        </button>
+                        <button onclick="filterOrders('ALL', this)" class="tab-btn active px-4 py-1.5 rounded-xl border text-sm font-bold">الكل</button>
+                        <button onclick="filterOrders('NEW', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">جديد</button>
+                        <button onclick="filterOrders('IN_PROGRESS', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">قيد العمل</button>
+                        <button onclick="filterOrders('WAITING_PART', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold">بانتظار قطعة</button>
+                        <button onclick="filterOrders('READY', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-extrabold bg-emerald-100 text-emerald-800 border-emerald-300">جاهز للتسليم</button>
+                        <button onclick="filterOrders('DAMAGED', this)" class="tab-btn px-4 py-1.5 rounded-xl border text-sm font-bold text-red-600 border-red-200">تالف</button>
                     `;
                 }
                 currentOrderFilter = 'ALL';
             }
         }
-
-        function updateOrderTabCounts() {
-            const tabs = document.querySelectorAll('.tab-btn[data-filter]');
-            if (!tabs.length) return;
-
-            const totalActive = orders.filter(o => o && o.status !== 'DELIVERED' && o.status !== 'REPLACED').length;
-            const counts = {
-                ALL: totalActive,
-                NEW: orders.filter(o => (o.status || 'NEW') === 'NEW').length,
-                IN_PROGRESS: orders.filter(o => o.status === 'IN_PROGRESS').length,
-                WAITING_PART: orders.filter(o => o.status === 'WAITING_PART').length,
-                READY: orders.filter(o => o.status === 'READY').length,
-                DAMAGED: orders.filter(o => o.status === 'DAMAGED').length,
-                TECH_POOL: orders.filter(o => !o.assignedTech && o.status !== 'DELIVERED' && o.status !== 'REPLACED').length,
-                MY_ORDERS: orders.filter(o => o.assignedTech === (loggedUser ? loggedUser.name : '') && o.status !== 'DELIVERED' && o.status !== 'REPLACED').length
-            };
-
-            tabs.forEach(tab => {
-                const key = tab.dataset.filter;
-                const countEl = tab.querySelector('[data-role="count"]');
-                if (!countEl) return;
-                countEl.textContent = counts[key] ?? 0;
-            });
-        }
-
         function handleLogin(e) { 
             e.preventDefault();
             const usernameInput = document.getElementById('login-username');
             const pinInput = document.getElementById('login-pin');
             const loginError = document.getElementById('login-error');
             const globalLoader = document.getElementById('global-loader');
-           const globalTitle = document.getElementById('global-loader-title');
-           const globalSubtitle = document.getElementById('global-loader-subtitle');
-           const globalGreeting = document.getElementById('global-loader-greeting');
-           const u = (usernameInput ? usernameInput.value : '').trim().toLowerCase();
-           const p = (pinInput ? pinInput.value : '').trim();
-           const f = users.find(usr => (usr.username || '').toLowerCase() === u && String(usr.pin || '') === p);
-           if(f){ 
-               loggedUser = f;
-               localStorage.setItem('sys_logged_user_v11_3', JSON.stringify({
-                   id: f.id,
-                   username: f.username,
-                   name: f.name,
-                   role: f.role,
-                   pin: f.pin
-               }));
-               appendAuditEntry(`تم تسجيل دخول المستخدم ${f.name} إلى النظام.`, { userId: f.id, action: 'LOGIN' });
-               if (loginError) loginError.classList.add('hidden'); 
-               if (usernameInput) usernameInput.value = '';
-               if (pinInput) pinInput.value = '';
-               if (globalLoader) {
-                   globalLoader.classList.remove('hidden');
-                   globalLoader.classList.add('flex');
-               }
-               if (globalGreeting) globalGreeting.textContent = `مرحباً ${f.name || 'المستخدم'}`;
-               if (globalTitle) globalTitle.textContent = 'جاري مزامنة البيانات...';
-               if (globalSubtitle) globalSubtitle.textContent = 'يتم جلب آخر التحديثات من قاعدة البيانات';
-               checkAuth(); 
-               startCloudSyncLoop();
-               fetchFromCloud(); 
-           } else {
-               if (loginError) loginError.classList.remove('hidden');
-           }
+            const u = (usernameInput ? usernameInput.value : '').trim().toLowerCase();
+            const p = (pinInput ? pinInput.value : '').trim();
+            const f = users.find(usr => (usr.username || '').toLowerCase() === u && String(usr.pin || '') === p);
+            if(f){ 
+                loggedUser = f;
+                localStorage.setItem('sys_logged_user_v11_3', JSON.stringify({
+                    id: f.id,
+                    username: f.username,
+                    name: f.name,
+                    role: f.role,
+                    pin: f.pin
+                }));
+                appendAuditEntry(`تم تسجيل دخول المستخدم ${f.name} إلى النظام.`, { userId: f.id, action: 'LOGIN' });
+                if (loginError) loginError.classList.add('hidden'); 
+                if (usernameInput) usernameInput.value = '';
+                if (pinInput) pinInput.value = '';
+                if (globalLoader) globalLoader.classList.remove('hidden'); 
+                checkAuth(); 
+                startCloudSyncLoop();
+                fetchFromCloud(); 
+            } else {
+                if (loginError) loginError.classList.remove('hidden');
+            }
         }
         function handleLogout() { loggedUser=null; localStorage.removeItem('sys_logged_user_v11_3'); checkAuth(); }
 
@@ -1394,127 +1286,29 @@
             return (csList || []).map(item => item && item.name ? item.name : '').filter(Boolean);
         }
 
-        function bindStringListDatalist(inputEl, options, placeholder, defaultValue = '') {
+        function bindOrgDatalistToInput(inputEl, defaultValue = '') {
             if (!inputEl) return;
-            const values = Array.isArray(options) ? options.filter(v => String(v ?? '').trim()) : [];
+            const orgOptions = getOrgOptionsList();
             const datalistId = inputEl.getAttribute('list');
             const datalist = datalistId ? document.getElementById(datalistId) : null;
             if (datalist) {
-                datalist.innerHTML = values.map(value => `<option value="${String(value).replace(/"/g, '&quot;')}"></option>`).join('');
+                datalist.innerHTML = orgOptions.map(org => `<option value="${org}"></option>`).join('');
             }
-            if (values.length === 0) {
-                inputEl.placeholder = placeholder || 'لا توجد خيارات';
+            if (orgOptions.length === 0) {
+                inputEl.placeholder = 'لا توجد جهات مسجلة';
                 inputEl.disabled = true;
                 inputEl.value = defaultValue || '';
                 return;
             }
             inputEl.disabled = false;
-            inputEl.placeholder = placeholder || 'اكتب أو اختر';
+            inputEl.placeholder = 'اكتب أو اختر الجهة';
             const targetValue = defaultValue || inputEl.dataset.currentValue || '';
-            if (targetValue && values.includes(targetValue)) {
+            if (targetValue && orgOptions.includes(targetValue)) {
                 inputEl.value = targetValue;
             } else if (!inputEl.value && targetValue) {
                 inputEl.value = targetValue;
             }
             inputEl.dataset.currentValue = inputEl.value;
-        }
-
-        function bindOrgDatalistToInput(inputEl, defaultValue = '') {
-            if (!inputEl) return;
-            const orgOptions = getOrgOptionsList();
-            bindStringListDatalist(inputEl, orgOptions, 'اكتب أو اختر الجهة', defaultValue || inputEl.dataset.currentValue || '');
-        }
-
-        function addNewBrandInline(inputId) {
-            const inputEl = document.getElementById(inputId);
-            if (!inputEl) return;
-            const value = (inputEl.value || '').trim();
-            if (!value) {
-                alert('⚠️ يرجى كتابة اسم الماركة أولاً.');
-                inputEl.focus();
-                return;
-            }
-            const exists = (brandsList || []).some(item => String(item).trim().toLowerCase() === value.toLowerCase());
-            if (exists) {
-                inputEl.value = value;
-                inputEl.dataset.currentValue = value;
-                return;
-            }
-            brandsList.push(value);
-            saveState();
-            pushSettingsToCloud();
-            bindStringListDatalist(inputEl, brandsList, 'اكتب أو اختر الماركة', value);
-            inputEl.dataset.currentValue = value;
-            inputEl.value = value;
-            alert('✅ تم إضافة الماركة الجديدة بنجاح في نفس النافذة.');
-        }
-
-        function addNewAccessoryTypeInline(inputId) {
-            const inputEl = document.getElementById(inputId);
-            if (!inputEl) return;
-            const value = (inputEl.value || '').trim();
-            if (!value) {
-                alert('⚠️ يرجى كتابة نوع التابع أولاً.');
-                inputEl.focus();
-                return;
-            }
-            const exists = (accTypesList || []).some(item => String(item).trim().toLowerCase() === value.toLowerCase());
-            if (exists) {
-                inputEl.value = value;
-                inputEl.dataset.currentValue = value;
-                return;
-            }
-            accTypesList.push(value);
-            saveState();
-            pushSettingsToCloud();
-            bindStringListDatalist(inputEl, accTypesList, 'اكتب أو اختر نوع التابع', value);
-            inputEl.dataset.currentValue = value;
-            inputEl.value = value;
-            alert('✅ تم إضافة نوع التابع الجديد بنجاح في نفس النافذة.');
-        }
-
-        function addNewBrand(e) {
-            if (e && typeof e.preventDefault === 'function') e.preventDefault();
-            const input = document.getElementById('new-brand-input');
-            const rawValue = input ? input.value : '';
-            const value = String(rawValue || '').trim();
-            if (!value) {
-                alert('⚠️ يرجى كتابة اسم الماركة أولاً.');
-                if (input) input.focus();
-                return;
-            }
-            const exists = (brandsList || []).some(item => String(item).trim().toLowerCase() === value.toLowerCase());
-            if (!exists) {
-                brandsList.push(value);
-                saveState();
-                pushSettingsToCloud();
-            }
-            if (input) input.value = '';
-            renderBrandsSettings();
-            refreshBrandInputOptions(value);
-            alert('✅ تم حفظ الماركة بنجاح.');
-        }
-
-        function addNewAccType(e) {
-            if (e && typeof e.preventDefault === 'function') e.preventDefault();
-            const input = document.getElementById('new-acc-input');
-            const rawValue = input ? input.value : '';
-            const value = String(rawValue || '').trim();
-            if (!value) {
-                alert('⚠️ يرجى كتابة نوع التابع أولاً.');
-                if (input) input.focus();
-                return;
-            }
-            const exists = (accTypesList || []).some(item => String(item).trim().toLowerCase() === value.toLowerCase());
-            if (!exists) {
-                accTypesList.push(value);
-                saveState();
-                pushSettingsToCloud();
-            }
-            if (input) input.value = '';
-            renderAccSettings();
-            refreshAccessoryTypeInputOptions(value);
-            alert('✅ تم حفظ نوع التابع بنجاح.');
         }
 
         function refreshOrgSelectOptions() {
@@ -1630,7 +1424,7 @@
         }
 
         function openAddOrderModal() { 
-            refreshBrandInputOptions();
+            const selectEl = document.getElementById('ord-brand'); if(selectEl) selectEl.innerHTML = brandsList.map(b => `<option value="${b}">${b}</option>`).join(''); 
             const dateInput = document.getElementById('ord-date');
             if (dateInput) dateInput.value = getDateInputValueForToday();
             refreshAccessorySelectOptions(); refreshOrgSelectOptions(); toggleEntryType('DEVICE');
@@ -2184,64 +1978,7 @@
             }
             
             document.getElementById('badge-orders-count').innerText = orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'REPLACED').length; 
-            const statusStyles = {
-                NEW: { card: 'border-blue-200 bg-gradient-to-br from-blue-50 via-white to-sky-50', badge: 'bg-blue-100 text-blue-700 border border-blue-200', dot: 'bg-blue-500', accent: 'text-blue-700', pill: 'text-blue-700', icon: 'fa-circle-dot' },
-                IN_PROGRESS: { card: 'border-amber-200 bg-gradient-to-br from-amber-50 via-white to-yellow-50', badge: 'bg-amber-100 text-amber-700 border border-amber-200', dot: 'bg-amber-500', accent: 'text-amber-700', pill: 'text-amber-700', icon: 'fa-screwdriver-wrench' },
-                WAITING_PART: { card: 'border-orange-200 bg-gradient-to-br from-orange-50 via-white to-rose-50', badge: 'bg-orange-100 text-orange-700 border border-orange-200', dot: 'bg-orange-500', accent: 'text-orange-700', pill: 'text-orange-700', icon: 'fa-box-open' },
-                READY: { card: 'border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50', badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500', accent: 'text-emerald-700', pill: 'text-emerald-700', icon: 'fa-check-circle' },
-                DAMAGED: { card: 'border-red-200 bg-gradient-to-br from-red-50 via-white to-rose-50', badge: 'bg-red-100 text-red-700 border border-red-200', dot: 'bg-red-500', accent: 'text-red-700', pill: 'text-red-700', icon: 'fa-triangle-exclamation' }
-            };
-
-            c.innerHTML = f.map(o => {
-                const itemType = o.entryType === 'ACCESSORY' ? 'تابع' : 'جهاز';
-                const rawStatus = (o.status || 'NEW').toUpperCase();
-                const style = statusStyles[rawStatus] || statusStyles.NEW;
-                const statusLabel = o.statusText || 'جديد';
-                const techLabel = o.assignedTech || 'غير مستلم';
-                const subtitle = o.entryType === 'ACCESSORY' ? (o.brand || 'نوع تابع') : `${o.brand || ''} ${o.model || ''}`;
-
-                return `
-                    <div onclick="openUpdateOrderModal(${o.id})" class="group relative overflow-hidden rounded-3xl border ${style.card} p-4 shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer">
-                        <div class="absolute inset-x-0 top-0 h-1 ${style.dot}"></div>
-                        <div class="flex items-start justify-between gap-3 mb-3">
-                            <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl ${style.badge} text-[12px]">
-                                    <i class="fa-solid ${style.icon}"></i>
-                                </span>
-                                <span class="text-[10px] font-black text-gray-500">${o.date || 'بدون تاريخ'}</span>
-                            </div>
-                            <div class="text-left">
-                                <div class="text-[10px] font-bold text-gray-500 mb-1">رقم التذكرة</div>
-                                <div class="text-2xl font-black ${style.accent}">#${o.id}</div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-3">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="text-[10px] font-extrabold px-2 py-1 rounded-full bg-white/80 text-gray-600 border border-gray-200">${itemType}</span>
-                                <div class="flex items-center gap-2">
-                                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-700 text-[10px] font-black"><i class="fa-solid fa-building-user"></i></span>
-                                    <span class="text-sm font-black text-gray-900 leading-5 text-right">${o.org || 'غير محدد'}</span>
-                                </div>
-                            </div>
-
-                            <div class="rounded-2xl bg-white/70 p-3 border border-white/80 shadow-inner">
-                                <div class="text-right text-sm font-black text-gray-800 leading-6">${subtitle}</div>
-                                <div class="mt-2 text-right text-[11px] text-gray-500">
-                                    <span class="font-bold text-gray-600">السيريال:</span> ${o.serial || 'لا يوجد'}
-                                </div>
-                            </div>
-
-                            <div class="flex items-center justify-between gap-2 text-[11px]">
-                                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 font-extrabold ${style.badge}">
-                                    <i class="fa-solid ${style.icon}"></i> ${statusLabel}
-                                </span>
-                                <span class="text-gray-500 font-bold">👨‍🔧 ${techLabel}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            c.innerHTML = f.map(o => `<div onclick="openUpdateOrderModal(${o.id})" class="bg-white rounded-3xl p-6 shadow-md border-r-8 ${o.status==='READY'?'border-emerald-500':(o.status==='DAMAGED'?'border-red-500':'border-primary')} flex flex-col justify-between cursor-pointer hover:shadow-xl transition-all"><div class="flex justify-between items-center mb-4"><span class="bg-gray-100 text-gray-800 text-[10px] px-3 py-1 rounded-full font-black">${o.date || ''}</span><span class="text-2xl font-black ${o.status==='DAMAGED'?'text-red-500':'text-primary'}">#${o.id}</span></div><div class="text-right space-y-2"><div class="text-lg font-black text-primaryDark">${o.org || 'غير محدد'}</div><div class="text-sm font-bold text-gray-700">الجهاز: ${o.brand || ''} - ${o.model || ''}</div><div class="text-xs font-semibold text-gray-500">سيريال: ${o.serial || 'لا يوجد'}</div></div><div class="mt-4 pt-3 border-t flex justify-between items-center"><span class="text-[11px] font-black ${o.status==='READY'?'text-emerald-600':(o.status==='DAMAGED'?'text-red-600':'text-gray-500')}">${o.statusText || 'جديد'}</span><span class="text-[10px] font-bold text-gray-400">🛠️ ${o.assignedTech || 'غير مستلم'}</span></div></div>`).join(''); 
             renderRoleActivityPanel();
         }
         
@@ -2398,16 +2135,7 @@
             refreshOrgSelectOptions();
             e.target.reset();
         }
-        function renderBrandsSettings() {
-            const container = document.getElementById('brands-list-container');
-            if (!container) return;
-            container.innerHTML = (brandsList || []).map((b, idx) => `
-                <div class="bg-gray-50 border px-3 py-2 rounded-xl flex justify-between items-center text-xs font-bold text-gray-700">
-                    <span>📱 ${b}</span>
-                    ${(brandsList || []).length > 1 ? `<button onclick="brandsList.splice(${idx},1); saveState(); pushSettingsToCloud(); renderBrandsSettings(); refreshBrandInputOptions();" class="text-red-500 hover:text-red-700 font-extrabold"><i class="fa-solid fa-trash ml-1"></i>حذف</button>` : ''}
-                </div>
-            `).join('');
-        }
+        function renderBrandsSettings() { const container = document.getElementById('brands-list-container'); if(container) { container.innerHTML = brandsList.map((b, idx) => `<div class="bg-gray-50 border px-3 py-2 rounded-xl flex justify-between items-center text-xs font-bold text-gray-700"><span>📱 ${b}</span>${brandsList.length > 1 ? `<button onclick="brandsList.splice(${idx},1);saveState();pushSettingsToCloud();renderBrandsSettings();" class="text-red-500 hover:text-red-700 font-extrabold"><i class="fa-solid fa-trash ml-1"></i>حذف</button>` : ''}</div>`).join(''); } }
         function addNewBrand(e) { 
             e.preventDefault();
             const input = document.getElementById('new-brand-input');
@@ -2887,107 +2615,7 @@
             `;
         }
 
-        function getChartDatasetForMode(filteredOrders, mode) {
-            const byType = { DEVICE: {}, ACCESSORY: {} };
-            const normalizedMode = String(mode || 'MOST_MAINTAINED').toUpperCase();
-
-            filteredOrders.forEach(o => {
-                if (!o) return;
-                const type = String(o.entryType || 'DEVICE').toUpperCase() === 'ACCESSORY' ? 'ACCESSORY' : 'DEVICE';
-                const brandKey = String(o.brand || (type === 'ACCESSORY' ? 'نوع تابع' : 'ماركة عامة')).trim() || (type === 'ACCESSORY' ? 'نوع تابع' : 'ماركة عامة');
-                const status = String(o.status || '').toUpperCase();
-                let shouldCount = false;
-
-                if (normalizedMode === 'MOST_MAINTAINED') {
-                    shouldCount = true;
-                } else if (normalizedMode === 'MOST_REPAIRED') {
-                    shouldCount = ['READY', 'DELIVERED', 'REPLACED', 'IN_PROGRESS'].includes(status);
-                } else if (normalizedMode === 'READY') {
-                    shouldCount = status === 'READY';
-                } else if (normalizedMode === 'DELIVERED') {
-                    shouldCount = ['DELIVERED', 'REPLACED'].includes(status);
-                }
-
-                if (shouldCount) {
-                    byType[type][brandKey] = (byType[type][brandKey] || 0) + 1;
-                }
-            });
-
-            const allLabels = Array.from(new Set([...Object.keys(byType.DEVICE), ...Object.keys(byType.ACCESSORY)])).sort((a, b) => {
-                const totalA = (byType.DEVICE[a] || 0) + (byType.ACCESSORY[a] || 0);
-                const totalB = (byType.DEVICE[b] || 0) + (byType.ACCESSORY[b] || 0);
-                return totalB - totalA;
-            }).slice(0, 8);
-
-            return {
-                labels: allLabels.length ? allLabels : ['لا توجد بيانات'],
-                datasets: [
-                    {
-                        label: 'الأجهزة',
-                        data: allLabels.length ? allLabels.map(label => byType.DEVICE[label] || 0) : [0],
-                        backgroundColor: '#0288D1',
-                        borderRadius: 6
-                    },
-                    {
-                        label: 'التوابع',
-                        data: allLabels.length ? allLabels.map(label => byType.ACCESSORY[label] || 0) : [0],
-                        backgroundColor: '#F59E0B',
-                        borderRadius: 6
-                    }
-                ]
-            };
-        }
-
-        function renderCharts() { 
-            if(loggedUser && loggedUser.role !== 'مدير نظام') return; 
-            const fd = document.getElementById('chart-date-from').value; 
-            const td = document.getElementById('chart-date-to').value; 
-            let filteredOrders = orders; 
-            if(fd || td) { filteredOrders = orders.filter(o => { if(!o.timestamp) return false; const od = new Date(o.timestamp); od.setHours(0,0,0,0); let p = true; if(fd) { const fdd = new Date(fd); fdd.setHours(0,0,0,0); if(od < fdd) p = false; } if(td) { const tdd = new Date(td); tdd.setHours(0,0,0,0); if(od > tdd) p = false; } return p; }); } 
-
-            const buttons = document.querySelectorAll('.chart-mode-btn');
-            buttons.forEach(btn => {
-                const isActive = btn.dataset.chartMode === currentChartMode;
-                btn.classList.toggle('bg-primary', isActive);
-                btn.classList.toggle('text-white', isActive);
-                btn.classList.toggle('border-primary', isActive);
-                btn.classList.toggle('bg-white', !isActive);
-                btn.classList.toggle('text-gray-700', !isActive);
-                btn.classList.toggle('border-gray-200', !isActive);
-                btn.classList.toggle('font-extrabold', isActive);
-                btn.classList.toggle('font-bold', !isActive);
-            });
-
-            const chartData = getChartDatasetForMode(filteredOrders, currentChartMode);
-            const ctx = document.getElementById('devicesChart');
-            if(!ctx) return; 
-            if(dashboardChart) dashboardChart.destroy();
-            dashboardChart = new Chart(ctx.getContext('2d'), {
-                type: 'bar',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 10, font: { family: 'Cairo', size: 11, weight: '700' } } },
-                        title: { display: false }
-                    },
-                    scales: {
-                        x: { ticks: { font: { family: 'Cairo', size: 10, weight: '700' } } },
-                        y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } }
-                    }
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('.chart-mode-btn').forEach(button => {
-                button.addEventListener('click', function () {
-                    currentChartMode = button.dataset.chartMode || 'MOST_MAINTAINED';
-                    renderCharts();
-                });
-            });
-        });
+        function renderCharts() { if(loggedUser && loggedUser.role !== 'مدير نظام') return; const fd = document.getElementById('chart-date-from').value; const td = document.getElementById('chart-date-to').value; let filteredOrders = orders; if(fd || td) { filteredOrders = orders.filter(o => { if(!o.timestamp) return false; const od = new Date(o.timestamp); od.setHours(0,0,0,0); let p = true; if(fd) { const fdd = new Date(fd); fdd.setHours(0,0,0,0); if(od < fdd) p = false; } if(td) { const tdd = new Date(td); tdd.setHours(0,0,0,0); if(od > tdd) p = false; } return p; }); } const brandCounts = {}; filteredOrders.forEach(o => { let b = o.brand || 'أخرى'; brandCounts[b] = (brandCounts[b] || 0) + 1; }); const ctx = document.getElementById('devicesChart'); if(!ctx) return; if(dashboardChart) dashboardChart.destroy(); dashboardChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: Object.keys(brandCounts).length ? Object.keys(brandCounts) : ['لا توجد بيانات'], datasets: [{ label: 'عدد الأجهزة المصانة حسب الماركة', data: Object.keys(brandCounts).length ? Object.values(brandCounts) : [0], backgroundColor: '#0288D1', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } }); }
         function renderDashboard() { const container = document.getElementById('kpi-grid'); if(container) { const counts = {
                 NEW: {
                     total: orders.filter(o => o.status === 'NEW' || !o.status).length,
@@ -3104,13 +2732,7 @@
         function onScanSuccess(t) { let id = t.replace(/[^0-9]/g, ''); if(id){ closeScannerModal(); const o = orders.find(x => x.id.toString() === id.toString()); if(o){ if(o.status === 'DELIVERED' || o.status === 'REPLACED') openDeliveredViewModal(o.id); else openUpdateOrderModal(o.id); }else alert('⚠️ لم يتم العثور على تذكرة.'); } }
         function closeScannerModal() { if(html5QrCodeScanner){ html5QrCodeScanner.clear(); html5QrCodeScanner=null; } closeModal('modal-scanner'); }
         
-        function updateBadges() {
-            const activeBadge = document.getElementById('badge-orders-count');
-            const deliveredBadge = document.getElementById('badge-delivered-count');
-            if (activeBadge) activeBadge.innerText = orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'REPLACED').length;
-            if (deliveredBadge) deliveredBadge.innerText = orders.filter(o => o.status === 'DELIVERED' || o.status === 'REPLACED').length;
-            updateOrderTabCounts();
-        }
+        function updateBadges() { document.getElementById('badge-orders-count').innerText = orders.filter(o=>o.status!=='DELIVERED' && o.status!=='REPLACED').length; document.getElementById('badge-delivered-count').innerText = orders.filter(o=>o.status==='DELIVERED' || o.status==='REPLACED').length; }
         function renderAll() { updateBadges(); renderDashboard(); renderOrders(); renderDelivered(); renderTechnicians(); toggleTechReportPanel(); renderRoleActivityPanel(); }
         
         document.addEventListener('click', function(event) {
@@ -3146,7 +2768,4 @@
                 backdrop.addEventListener('click', closeSidebar);
             }
         };
-    </script>
-</body>
-</html>
-
+    
