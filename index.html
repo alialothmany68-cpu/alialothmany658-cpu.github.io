@@ -556,10 +556,53 @@
         const API_URL = "https://script.google.com/macros/s/AKfycby4b8G3bnQ9HSyHc8F6EJSUcxtbAVyQHwHmyAdrXgp76LqlrBefVSmYIFBFyjyzUOFUdQ/exec";
 
         const defaultOrders = [];
-        const defaultUsers = [{ id: 1, name: 'مدير النظام', username: 'admin', pin: 'adminali', role: 'مدير نظام' }, { id: 2, name: 'استقبال', username: 'rec', pin: '123', role: 'موظف استقبال' }, { id: 3, name: 'م. عبدالغني', username: 'tech1', pin: '123', role: 'مهندس صيانة' }, { id: 4, name: 'م. عمار', username: 'tech2', pin: '123', role: 'مهندس صيانة' }];
-        const defaultBrands = ['آبل', 'سامسونج', 'شاومي'];
-        const defaultCS = [{ id: 1, name: 'الجفينة', phone: '777', type: 'عميل' }];
-        const defaultAccTypes = ['بطاريات', 'شاشات', 'لوحات أم', 'قطع تالفة'];
+        const defaultUsers = [{ id: 1, name: 'مدير النظام', username: 'admin', pin: 'adminali', role: 'مدير نظام' }, { id: 2, name: 'استقبال', username: 'rec', pin: '123', role: 'موظف استقبال' }, { id: 3, name: 'م. عبدالغني', username: 'tech1', pin: '123', role: 'مهندس صيانة' }, { id: 4, name: 'م. عمار', username: 'tech2', pin: '123', role: 'مهندس صيانة' }, { id: 5, name: 'م. علي', username: 'tech3', pin: '123', role: 'مهندس صيانة' }];
+        const defaultBrands = ['ايباد ايفون', 'تلفون ايفون', 'ايباد سامسونج', 'تلفون سامسونج'];
+        const defaultCS = [
+            { id: 1, name: 'الفرع الاول', phone: '1', type: 'عميل' },
+            { id: 2, name: 'الفرع الثاني', phone: '2', type: 'عميل' },
+            { id: 3, name: 'الفرع الثالث', phone: '3', type: 'عميل' },
+            { id: 4, name: 'الفرع الرابع', phone: '4', type: 'عميل' },
+            { id: 5, name: 'الفرع الخامس', phone: '5', type: 'عميل' },
+            { id: 6, name: 'الفرع السادس', phone: '6', type: 'عميل' },
+            { id: 7, name: 'الفرع السابع', phone: '7', type: 'عميل' },
+            { id: 8, name: 'الفرع الثامن', phone: '8', type: 'عميل' },
+            { id: 9, name: 'القسم الاول', phone: '9', type: 'عميل' },
+            { id: 10, name: 'القسم الثاني', phone: '10', type: 'عميل' },
+            { id: 11, name: 'القسم الثالث', phone: '11', type: 'عميل' },
+            { id: 12, name: 'القسم الرابع', phone: '12', type: 'عميل' },
+            { id: 13, name: 'القسم الخامس', phone: '13', type: 'عميل' },
+            { id: 14, name: 'القسم السادس', phone: '14', type: 'عميل' },
+            { id: 15, name: 'القسم السابع', phone: '15', type: 'عميل' },
+            { id: 16, name: 'القسم الثامن', phone: '16', type: 'عميل' },
+            { id: 17, name: 'المكتب الاول', phone: '17', type: 'عميل' },
+            { id: 18, name: 'المكتب الثاني', phone: '18', type: 'عميل' },
+            { id: 19, name: 'المكتب الثالث', phone: '19', type: 'عميل' },
+            { id: 20, name: 'المكتب الرابع', phone: '20', type: 'عميل' },
+            { id: 21, name: 'المكتب الخامس', phone: '21', type: 'عميل' },
+            { id: 22, name: 'المكتب السادس', phone: '22', type: 'عميل' },
+            { id: 23, name: 'المكتب السابع', phone: '23', type: 'عميل' },
+            { id: 24, name: 'المكتب الثامن', phone: '24', type: 'عميل' },
+            { id: 25, name: 'الادارة الاولى', phone: '25', type: 'عميل' },
+            { id: 26, name: 'الادارة الثانية', phone: '26', type: 'عميل' },
+            { id: 27, name: 'الادارة الثالثة', phone: '27', type: 'عميل' },
+            { id: 28, name: 'الادارة الرابعة', phone: '28', type: 'عميل' },
+            { id: 29, name: 'الادارة الخامسة', phone: '29', type: 'عميل' },
+            { id: 30, name: 'الادارة السادسة', phone: '30', type: 'عميل' },
+            { id: 31, name: 'الادارة السابعة', phone: '31', type: 'عميل' },
+            { id: 32, name: 'الادارة الثامنة', phone: '32', type: 'عميل' },
+            { id: 33, name: 'الادارة التاسعة', phone: '33', type: 'عميل' },
+            { id: 34, name: 'الادارة العاشرة', phone: '34', type: 'عميل' },
+            { id: 35, name: 'الادارة الحادي عشر', phone: '35', type: 'عميل' },
+            { id: 36, name: 'الادارة الثاني عشر', phone: '36', type: 'عميل' },
+            { id: 37, name: 'الادارة الثالث عشر', phone: '37', type: 'عميل' },
+            { id: 38, name: 'الادارة الرابع عشر', phone: '38', type: 'عميل' },
+            { id: 39, name: 'الادارة الخامس عشر', phone: '39', type: 'عميل' },
+            { id: 40, name: 'الادارة السادس عشر', phone: '40', type: 'عميل' },
+            { id: 41, name: 'الادارة السابع عشر', phone: '41', type: 'عميل' },
+            { id: 42, name: 'الادارة الثامن عشر', phone: '42', type: 'عميل' }
+        ];
+        const defaultAccTypes = ['بطارية ايفون', 'شاحن ايفون', 'قاعدة ايفون', 'سماعة ايفون', 'حامل ايفون', 'يد ايباد ايفون', 'بطارية سامسونج', 'شاحن سامسونج', 'قاعدة سامسونج', 'سماعة سامسونج', 'حامل سامسونج', 'يد ايباد سامسونج'];
         const SYNC_INTERVAL_MS = 5000;
         const SYNC_REQUEST_TIMEOUT_MS = 5000;
 
@@ -685,14 +728,19 @@
             if (Array.isArray(snapshot.users) && snapshot.users.length > 0) {
                 users = normalizeUsers(snapshot.users);
             }
-            if (Array.isArray(snapshot.brands) && snapshot.brands.length > 0) {
-                brandsList = mergeUniqueStringList(snapshot.brands, defaultBrands);
+            if (Array.isArray(snapshot.brands)) {
+                brandsList = defaultBrands.slice();
             }
-            if (Array.isArray(snapshot.cs) && snapshot.cs.length > 0) {
-                csList = mergeUniqueObjectList(snapshot.cs, defaultCS, item => `${item.id ?? ''}-${String(item.name || '').trim().toLowerCase()}`);
+            if (Array.isArray(snapshot.cs)) {
+                csList = defaultCS.map(item => ({
+                    id: Number(item.id || 0),
+                    name: String(item.name || '').trim(),
+                    phone: String(item.phone || ''),
+                    type: item.type || 'عميل'
+                })).filter(item => item.name);
             }
-            if (Array.isArray(snapshot.accTypes) && snapshot.accTypes.length > 0) {
-                accTypesList = mergeUniqueStringList(snapshot.accTypes, defaultAccTypes);
+            if (Array.isArray(snapshot.accTypes)) {
+                accTypesList = defaultAccTypes.slice();
             }
         }
 
@@ -730,13 +778,29 @@
         const cloudSeed = getCloudSeedData();
         let orders = cloudSeed.orders;
         let users = cloudSeed.users;
-        let brandsList = cloudSeed.brands;
+        let brandsList = defaultBrands.slice();
         let csList = cloudSeed.cs;
-        let accTypesList = cloudSeed.accTypes;
+        let accTypesList = defaultAccTypes.slice();
         let loggedUser = null;
         let auditLog = [];
 
+        csList = defaultCS.map(item => ({
+            id: Number(item.id || 0),
+            name: String(item.name || '').trim(),
+            phone: String(item.phone || ''),
+            type: item.type || 'عميل'
+        })).filter(item => item.name);
+
         loadSettingsSnapshot();
+        brandsList = defaultBrands.slice();
+        accTypesList = defaultAccTypes.slice();
+        csList = defaultCS.map(item => ({
+            id: Number(item.id || 0),
+            name: String(item.name || '').trim(),
+            phone: String(item.phone || ''),
+            type: item.type || 'عميل'
+        })).filter(item => item.name);
+        saveSettingsSnapshot();
 
         function restoreSavedUser() {
             const saved = safeParse(localStorage.getItem('sys_logged_user_v11_3'), null);
