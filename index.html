@@ -16,16 +16,110 @@
     
     <script>
         tailwind.config = {
-            theme: { extend: { fontFamily: { cairo: ['Cairo', 'sans-serif'] }, colors: { primary: '#0288D1', primaryDark: '#01579B', bgLight: '#F8FAFC' } } }
+            theme: {
+                extend: {
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] },
+                    colors: {
+                        primary: '#1f5f8b',
+                        primaryDark: '#163d5f',
+                        secondary: '#2d8c8a',
+                        accent: '#f0b75e',
+                        bgLight: '#f4f7fb',
+                        soft: '#eaf2f8',
+                        success: '#2d9a7a',
+                        danger: '#d96a5d'
+                    }
+                }
+            }
         }
     </script>
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #F8FAFC; margin: 0; padding: 0; }
-        .sidebar-link.active { background-color: #0288D1; color: white; font-weight: bold; }
-        .tab-btn.active { background-color: #0288D1; color: white; border-color: #0288D1; }
+        :root {
+            --primary: #1f5f8b;
+            --primary-dark: #163d5f;
+            --secondary: #2d8c8a;
+            --accent: #f0b75e;
+            --bg: #f3f7fb;
+            --bg-strong: #e9f0f6;
+            --surface: rgba(255,255,255,0.94);
+            --border: rgba(148, 163, 184, 0.22);
+            --text: #1d2d3d;
+            --muted: #617487;
+            --success: #2d9a7a;
+            --danger: #d96a5d;
+            --shadow-soft: 0 18px 42px rgba(22, 61, 95, 0.09);
+            --shadow-strong: 0 28px 60px rgba(16, 45, 68, 0.18);
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(circle at top right, rgba(240, 183, 94, 0.18), transparent 22%),
+                        radial-gradient(circle at top left, rgba(45, 140, 138, 0.12), transparent 24%),
+                        linear-gradient(180deg, #f7f9fc 0%, #eef4f9 18%, #f5f8fb 100%);
+            margin: 0;
+            padding: 0;
+            color: var(--text);
+        }
+        .sidebar-link.active { background: linear-gradient(135deg, var(--primary) 0%, #2f7eb0 100%); color: white; font-weight: bold; box-shadow: 0 12px 26px rgba(31, 95, 139, 0.18); }
+        .tab-btn.active { background: linear-gradient(135deg, var(--primary) 0%, #2f7eb0 100%); color: white; border-color: var(--primary); box-shadow: 0 10px 20px rgba(31, 95, 139, 0.14); }
+        .sidebar-link, .tab-btn, button, .rounded-2xl, .rounded-3xl, .rounded-xl {
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+        }
+        .sidebar-link:hover, .tab-btn:hover, button:hover {
+            transform: translateY(-1px);
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
+        #main-sidebar {
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(8px);
+            border-left: 1px solid var(--border);
+            box-shadow: -12px 0 30px rgba(22, 61, 95, 0.06);
+        }
+
+        #main-content > header {
+            background: rgba(255,255,255,0.86);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.03);
+        }
+
+        .bg-white.rounded-3xl,
+        .bg-white.rounded-2xl,
+        .bg-white.rounded-xl,
+        .bg-white\/95.rounded-\[28px\] {
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            box-shadow: var(--shadow-soft);
+        }
+
+        input, select, textarea {
+            border-color: rgba(148, 163, 184, 0.45) !important;
+            box-shadow: inset 0 1px 2px rgba(148, 163, 184, 0.08);
+            background: rgba(255,255,255,0.95);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 3px rgba(31, 95, 139, 0.12);
+        }
+
+        #login-screen {
+            background: linear-gradient(135deg, #102b45 0%, #1f5f8b 28%, #3d8fb1 58%, #b8dfe9 100%);
+        }
+
+        #login-screen > div {
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,251,255,0.96) 100%);
+            border: 1px solid rgba(255,255,255,0.45);
+            box-shadow: var(--shadow-strong);
+        }
+
+        #global-loader > div,
+        #manual-sync-modal > div {
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            box-shadow: 0 24px 52px rgba(15, 23, 42, 0.16);
+        }
+
         #export-render-zone { position: absolute; left: -9999px; top: -9999px; background: white; z-index: -100; overflow: hidden; }
         @media print {
             body * { visibility: hidden; }
@@ -169,17 +263,43 @@
         </div>
     </div>
 
-    <div id="login-screen" class="fixed inset-0 bg-gradient-to-br from-primaryDark via-primary to-sky-400 z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-8 shadow-2xl w-full max-w-md text-center relative overflow-hidden">
-            <div class="bg-sky-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner text-primary text-3xl"><i class="fa-solid fa-user-shield"></i></div>
-            <h2 class="text-2xl font-extrabold text-gray-800 mb-1">تسجيل الدخول للنظام</h2>
-            <p class="text-xs text-gray-400 mb-6 font-semibold">نظام إدارة الصيانة المؤسسي v11.5 (Cloud)</p>
-            <form onsubmit="handleLogin(event)" class="space-y-4 text-right">
-                <div><label class="block text-xs font-bold text-gray-600 mb-1">اسم المستخدم</label><div class="relative"><input type="text" id="login-username" required class="w-full border rounded-xl px-4 py-2.5 pl-10 text-sm focus:border-primary font-bold text-left" dir="ltr"><i class="fa-solid fa-user absolute top-3 left-3 text-gray-400"></i></div></div>
-                <div><label class="block text-xs font-bold text-gray-600 mb-1">رمز الحماية (PIN)</label><div class="relative"><input type="password" id="login-pin" required class="w-full border rounded-xl px-4 py-2.5 pl-10 text-sm focus:border-primary font-bold text-left" dir="ltr"><i class="fa-solid fa-lock absolute top-3 left-3 text-gray-400"></i></div></div>
-                <div id="login-error" class="text-red-500 text-xs font-bold text-center hidden"><i class="fa-solid fa-triangle-exclamation ml-1"></i>بيانات الدخول غير صحيحة!</div>
-                <button type="submit" class="w-full bg-primary hover:bg-primaryDark text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-right-to-bracket"></i>دخول للنظام</button>
-            </form>
+    <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.22),_transparent_35%),linear-gradient(135deg,#031d32_0%,#0d4672_30%,#0b84c6_65%,#bfeaff_100%)]"></div>
+        <div class="absolute inset-0 opacity-25">
+            <div class="animate-pulse absolute -top-20 -right-12 h-64 w-64 rounded-full bg-white/20 blur-3xl"></div>
+            <div class="animate-pulse absolute bottom-0 left-0 h-72 w-72 rounded-full bg-sky-200/25 blur-3xl" style="animation-delay: 0.8s;"></div>
+            <div class="animate-pulse absolute top-1/3 left-1/3 h-40 w-40 rounded-full bg-cyan-100/15 blur-3xl" style="animation-delay: 1.2s;"></div>
+        </div>
+
+        <div class="relative w-full max-w-md overflow-hidden rounded-[32px] border border-white/25 bg-white/10 p-2 shadow-[0_30px_80px_rgba(2,52,82,0.45)] backdrop-blur-xl">
+            <div class="rounded-[28px] bg-white/95 p-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] ring-1 ring-sky-100/80">
+                <div class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-sky-100 via-white to-cyan-100 text-3xl text-sky-700 shadow-[0_16px_28px_rgba(14,165,233,0.25)] ring-4 ring-sky-50">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div class="mb-4 text-center">
+                    <h2 class="text-2xl font-extrabold text-slate-800">تسجيل الدخول للنظام</h2>
+                    <p class="mt-2 text-xs font-semibold tracking-[0.08em] text-sky-700/80">نظام إدارة الصيانة المؤسسي v11.5 (Cloud)</p>
+                </div>
+                <form onsubmit="handleLogin(event)" class="space-y-4 text-right">
+                    <div>
+                        <label class="mb-1 block text-xs font-bold text-slate-700">اسم المستخدم</label>
+                        <div class="relative">
+                            <input type="text" id="login-username" required class="w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 pl-11 text-left text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none" dir="ltr" placeholder="username">
+                            <i class="fa-solid fa-user absolute left-3 top-3.5 text-sky-500"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-bold text-slate-700">رمز الحماية (PIN)</label>
+                        <div class="relative">
+                            <input type="password" id="login-pin" required class="w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 pr-12 text-left text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none" dir="ltr" autocomplete="current-password" placeholder="PIN">
+                            <i class="fa-solid fa-lock absolute right-10 top-3.5 text-sky-500"></i>
+                            <button type="button" id="toggle-pin-visibility" aria-label="إظهار كلمة المرور" onclick="togglePasswordVisibility()" class="absolute right-3 top-3 text-slate-500 transition-all hover:text-sky-600"><i id="toggle-pin-icon" class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div id="login-error" class="hidden text-center text-xs font-bold text-red-500"><i class="fa-solid fa-triangle-exclamation ml-1"></i>بيانات الدخول غير صحيحة!</div>
+                    <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-primary to-cyan-500 py-3.5 text-sm font-extrabold text-white shadow-[0_18px_30px_rgba(2,136,209,0.28)] transition-all hover:scale-[1.01] hover:shadow-[0_22px_34px_rgba(2,136,209,0.35)]"><i class="fa-solid fa-right-to-bracket"></i>دخول للنظام</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -216,7 +336,7 @@
             </div>
             <div id="action-header-btn" class="flex items-center gap-3">
                 <button type="button" onclick="triggerManualSync()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm border border-slate-200 transition-all"><i class="fa-solid fa-rotate-right"></i><span class="hidden sm:inline">تحديث يدوي</span></button>
-                <button id="add-order-header-btn" onclick="openAddOrderModal()" class="bg-primary hover:bg-primaryDark text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-plus"></i><span>إستلام وتصدير ملصق</span></button>
+                <button id="add-order-header-btn" onclick="openAddOrderModal()" class="bg-gradient-to-r from-sky-600 via-primary to-sky-500 hover:from-sky-700 hover:to-primary text-white px-4 py-2 rounded-2xl text-sm font-extrabold flex items-center gap-2 shadow-lg shadow-sky-500/20 hover:shadow-xl transition-all ring-1 ring-white/40"><i class="fa-solid fa-plus"></i><span>إستلام وتصدير ملصق</span></button>
             </div>
         </header>
 
@@ -700,6 +820,47 @@
             return merged;
         }
 
+        function playSoftSystemSound(kind = 'click') {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+
+            try {
+                if (!window.__sysAudioCtx) {
+                    window.__sysAudioCtx = new AudioCtx();
+                }
+
+                const ctx = window.__sysAudioCtx;
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+
+                const presets = {
+                    click: { freq: 620, duration: 0.06, volume: 0.03, sweep: -180 },
+                    login: { freq: 360, duration: 0.42, volume: 0.09, sweep: 150 },
+                    card: { freq: 480, duration: 0.12, volume: 0.04, sweep: 60 },
+                    check: { freq: 760, duration: 0.09, volume: 0.04, sweep: 120 },
+                    status: { freq: 440, duration: 0.16, volume: 0.05, sweep: 80 }
+                };
+
+                const config = presets[kind] || presets.click;
+                const oscillator = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(config.freq, ctx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(Math.max(180, config.freq + config.sweep), ctx.currentTime + config.duration);
+
+                gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(config.volume, ctx.currentTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + config.duration);
+
+                oscillator.connect(gain);
+                gain.connect(ctx.destination);
+                oscillator.start();
+                oscillator.stop(ctx.currentTime + config.duration);
+            } catch (err) {}
+        }
+
         function saveSettingsSnapshot() {
             try {
                 const snapshot = {
@@ -811,6 +972,45 @@
                 return null;
             }
             return match;
+        }
+
+        function prefillSavedLoginCredentials() {
+            const usernameInput = document.getElementById('login-username');
+            const pinInput = document.getElementById('login-pin');
+            if (!usernameInput || !pinInput) return;
+
+            const saved = safeParse(localStorage.getItem('sys_logged_user_v11_3'), null);
+            if (!saved || !saved.username) return;
+
+            const match = users.find(u => (u.username || '').toLowerCase() === String(saved.username || '').toLowerCase());
+            if (!match) {
+                localStorage.removeItem('sys_logged_user_v11_3');
+                return;
+            }
+
+            usernameInput.value = match.username || saved.username || '';
+            pinInput.value = String(saved.pin || match.pin || '');
+            pinInput.type = 'password';
+            const toggleBtn = document.getElementById('toggle-pin-visibility');
+            const toggleIcon = document.getElementById('toggle-pin-icon');
+            if (toggleBtn && toggleIcon) {
+                toggleBtn.setAttribute('aria-label', 'إظهار كلمة المرور');
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+
+        function togglePasswordVisibility() {
+            const pinInput = document.getElementById('login-pin');
+            const toggleBtn = document.getElementById('toggle-pin-visibility');
+            const toggleIcon = document.getElementById('toggle-pin-icon');
+            if (!pinInput || !toggleBtn || !toggleIcon) return;
+
+            const isPasswordHidden = pinInput.type === 'password';
+            pinInput.type = isPasswordHidden ? 'text' : 'password';
+            toggleBtn.setAttribute('aria-label', isPasswordHidden ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+            toggleIcon.classList.toggle('fa-eye', !isPasswordHidden);
+            toggleIcon.classList.toggle('fa-eye-slash', isPasswordHidden);
         }
 
         function getAuditLog() {
@@ -1363,6 +1563,7 @@
                    pin: f.pin
                }));
                appendAuditEntry(`تم تسجيل دخول المستخدم ${f.name} إلى النظام.`, { userId: f.id, action: 'LOGIN' });
+               playSoftSystemSound('login');
                if (loginError) loginError.classList.add('hidden'); 
                if (usernameInput) usernameInput.value = '';
                if (pinInput) pinInput.value = '';
@@ -1373,6 +1574,19 @@
                if (globalGreeting) globalGreeting.textContent = `مرحباً ${f.name || 'المستخدم'}`;
                if (globalTitle) globalTitle.textContent = 'جاري مزامنة البيانات...';
                if (globalSubtitle) globalSubtitle.textContent = 'يتم جلب آخر التحديثات من قاعدة البيانات';
+
+               try {
+                   if ('speechSynthesis' in window) {
+                       window.speechSynthesis.cancel();
+                       const syncVoice = new SpeechSynthesisUtterance('جارٍ مزامنة البيانات');
+                       syncVoice.lang = 'ar-SA';
+                       syncVoice.rate = 0.95;
+                       syncVoice.pitch = 0.72;
+                       syncVoice.volume = 0.8;
+                       window.speechSynthesis.speak(syncVoice);
+                   }
+               } catch (err) {}
+
                checkAuth(); 
                startCloudSyncLoop();
                fetchFromCloud(); 
@@ -1380,7 +1594,7 @@
                if (loginError) loginError.classList.remove('hidden');
            }
         }
-        function handleLogout() { loggedUser=null; localStorage.removeItem('sys_logged_user_v11_3'); checkAuth(); }
+        function handleLogout() { loggedUser=null; checkAuth(); }
 
         function showManualSyncModal(statusText = 'جارٍ مزامنة البيانات...', isSuccess = false) {
             const modal = document.getElementById('manual-sync-modal');
@@ -2076,6 +2290,7 @@
                     pushOrderToCloud(o); 
                     closeModal('modal-update-order'); 
                     renderAll(); 
+                    playSoftSystemSound('status');
                     alert('✅ تم حفظ التغييرات بنجاح!');
                 } 
             } catch (err) {
@@ -2131,13 +2346,109 @@
             } else {
                 selectedReadyDeliveryIds = selectedReadyDeliveryIds.filter(item => String(item) !== val);
             }
+            playSoftSystemSound('check');
             renderReadyBulkDeliveryList();
         }
 
         function toggleSelectAllReadyOrders(checked) {
             const readyIds = orders.filter(o => o.status === 'READY').map(o => String(o.id));
             selectedReadyDeliveryIds = checked ? readyIds : [];
+            playSoftSystemSound('check');
             renderReadyBulkDeliveryList();
+        }
+
+        function getOrderWhatsAppText(order) {
+            if (!order || typeof order !== 'object') return '';
+
+            const statusKey = String(order.status || 'NEW').toUpperCase();
+            const statusText = STATUS_MAP[statusKey] || STATUS_MAP.NEW || 'جديد';
+            const typeText = order.entryType === 'ACCESSORY' ? 'تابع' : 'جهاز';
+            const deviceText = order.entryType === 'ACCESSORY'
+                ? (order.brand || 'نوع تابع')
+                : `${order.brand || 'غير محدد'} ${order.model || ''}`.trim();
+            const customerText = order.customer ? `\nاسم العميل: ${order.customer}` : '';
+            const serialText = order.serial ? `\nالسيريال: ${order.serial}` : '';
+            const faultsText = order.faults ? `\nالعطل: ${order.faults}` : '';
+
+            return [
+                'تحديث حالة الطلب',
+                `رقم التذكرة: #${order.id}`,
+                `النوع: ${typeText}`,
+                `الجهة: ${order.org || 'غير محدد'}` + customerText,
+                `العنصر: ${deviceText}`,
+                serialText,
+                faultsText,
+                `الحالة: ${statusText}`,
+                `التاريخ: ${order.date || new Date().toLocaleDateString('ar-EG')}`
+            ].filter(Boolean).join('\n');
+        }
+
+        function sendOrderWhatsAppStatus(orderId) {
+            const order = orders.find(item => String(item.id) === String(orderId));
+            if (!order) return;
+
+            const statusKey = String(order.status || 'NEW').toUpperCase();
+            if (!['READY', 'DAMAGED'].includes(statusKey)) return;
+
+            const text = getOrderWhatsAppText(order);
+            const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }
+
+        function getOrderWhatsAppText(order) {
+            if (!order || typeof order !== 'object') return '';
+
+            const statusKey = String(order.status || 'NEW').toUpperCase();
+            const statusText = statusKey === 'READY' ? 'جاهز' : statusKey === 'DAMAGED' ? 'تالف' : 'قيد المتابعة';
+            const itemName = order.entryType === 'ACCESSORY'
+                ? (order.brand || 'المنتج')
+                : `${order.brand || 'المنتج'} ${order.model || ''}`.trim();
+
+            return [
+                'السلام عليكم ورحمة الله وبركاته،',
+                `التذكرة رقم ${order.id}، الصنف ${itemName} أصبح ${statusText}.`,
+                `حالة الكرت: ${statusText === 'جاهز' ? 'جاهز للاستلام' : statusText === 'تالف' ? 'تالف' : 'قيد المتابعة'}`,
+                'يرجى التوجه إلى مركز الصيانة لاستلامها.',
+                'شكرًا.'
+            ].join('\n');
+        }
+
+        function sendOrderWhatsAppStatus(orderId) {
+            if (loggedUser && loggedUser.role === 'مهندس صيانة') return;
+
+            const order = orders.find(item => String(item.id) === String(orderId));
+            if (!order) return;
+
+            const statusKey = String(order.status || 'NEW').toUpperCase();
+            if (!['READY', 'DAMAGED'].includes(statusKey)) return;
+
+            const text = getOrderWhatsAppText(order);
+            const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+            toggleWhatsAppSent(orderId, true);
+            playSoftSystemSound('status');
+        }
+
+        function getWhatsAppSentMap() {
+            try {
+                return safeParse(localStorage.getItem('sys_whatsapp_notified_v11'), {}) || {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function isWhatsAppSent(orderId) {
+            const map = getWhatsAppSentMap();
+            return !!map[String(orderId)];
+        }
+
+        function toggleWhatsAppSent(orderId, checked) {
+            try {
+                const map = getWhatsAppSentMap();
+                map[String(orderId)] = !!checked;
+                localStorage.setItem('sys_whatsapp_notified_v11', JSON.stringify(map));
+            } catch (e) {}
+            playSoftSystemSound('check');
         }
 
         function openReadyBulkDeliveryModal() {
@@ -2263,13 +2574,17 @@
                 const statusLabel = o.statusText || 'جديد';
                 const techLabel = o.assignedTech || 'غير مستلم';
                 const subtitle = o.entryType === 'ACCESSORY' ? (o.brand || 'نوع تابع') : `${o.brand || ''} ${o.model || ''}`;
+                const isEngineerRole = loggedUser && loggedUser.role === 'مهندس صيانة';
+                const shouldShowWhatsAppButton = !isEngineerRole && ['READY', 'DAMAGED'].includes(rawStatus);
+                const whatsappButtonClass = rawStatus === 'READY' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700';
+                const sent = isWhatsAppSent(o.id);
 
                 return `
-                    <div onclick="openUpdateOrderModal(${o.id})" class="group relative overflow-hidden rounded-3xl border ${style.card} p-4 shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer">
-                        <div class="absolute inset-x-0 top-0 h-1 ${style.dot}"></div>
+                    <div onclick="openUpdateOrderModal(${o.id})" class="group relative overflow-hidden rounded-[28px] border ${style.card} p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] hover:shadow-[0_18px_36px_rgba(15,23,42,0.10)] transition-all duration-200 cursor-pointer hover:-translate-y-0.5">
+                        <div class="absolute inset-x-0 top-0 h-1.5 ${style.dot}"></div>
                         <div class="flex items-start justify-between gap-3 mb-3">
                             <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl ${style.badge} text-[12px]">
+                                <span class="inline-flex items-center justify-center w-9 h-9 rounded-2xl ${style.badge} text-[12px] shadow-sm">
                                     <i class="fa-solid ${style.icon}"></i>
                                 </span>
                                 <span class="text-[10px] font-black text-gray-500">${o.date || 'بدون تاريخ'}</span>
@@ -2282,10 +2597,10 @@
 
                         <div class="space-y-3">
                             <div class="flex items-center justify-between gap-2">
-                                <span class="text-[10px] font-extrabold px-2 py-1 rounded-full bg-white/80 text-gray-600 border border-gray-200">${itemType}</span>
+                                <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/80 text-gray-600 border border-gray-200 shadow-sm">${itemType}</span>
                                 <div class="flex items-center gap-2">
-                                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-700 text-[10px] font-black"><i class="fa-solid fa-building-user"></i></span>
-                                    <span class="text-sm font-black text-gray-900 leading-5 text-right">${o.org || 'غير محدد'}</span>
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-sky-100 text-sky-700 text-[10px] font-black"><i class="fa-solid fa-building-user"></i></span>
+                                    <span class="text-sm font-black text-gray-900 leading-5 text-right max-w-[9rem] truncate">${o.org || 'غير محدد'}</span>
                                 </div>
                             </div>
 
@@ -2302,6 +2617,17 @@
                                 </span>
                                 <span class="text-gray-500 font-bold">👨‍🔧 ${techLabel}</span>
                             </div>
+
+                            ${shouldShowWhatsAppButton ? `
+                                <div class="flex items-center justify-end gap-2 pt-1">
+                                    <label class="inline-flex items-center gap-1 cursor-pointer select-none" onclick="event.stopPropagation();">
+                                        <input type="checkbox" ${sent ? 'checked' : ''} onchange="event.stopPropagation(); toggleWhatsAppSent(${o.id}, this.checked);" class="w-3.5 h-3.5 accent-emerald-600 rounded border-gray-300">
+                                    </label>
+                                    <button type="button" onclick="event.stopPropagation(); sendOrderWhatsAppStatus(${o.id});" class="inline-flex items-center gap-1.5 rounded-full ${whatsappButtonClass} text-white px-2.5 py-1.5 text-[10px] font-black shadow-sm transition-all hover:scale-[1.02]">
+                                        <i class="fa-brands fa-whatsapp"></i> واتساب
+                                    </button>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -2361,12 +2687,14 @@
         function openUpdateOrderModal(id) { 
             const o = orders.find(x => x.id.toString() === id.toString()); if(!o)return; 
             document.getElementById('upd-order-id').value=o.id; 
+            const customerName = o.customer ? String(o.customer).trim() : '';
             
             document.getElementById('upd-device-info').innerHTML=`
                 <div class="grid grid-cols-2 gap-2 text-sm text-right mb-3">
                     <div class="bg-blue-50 p-2 rounded border border-blue-200">📱 <b>الجهاز:</b> ${o.brand || ''} ${o.model || ''}</div>
                     <div class="bg-gray-50 p-2 rounded border border-gray-200" dir="ltr">🔢 <b>SN:</b> ${o.serial || 'لا يوجد'}</div>
                     <div class="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-200">🏢 <b>الجهة/المؤسسة:</b> ${o.org || ''}</div>
+                    ${customerName ? `<div class="col-span-2 bg-emerald-50 p-2 rounded border border-emerald-200 text-emerald-800">👤 <b>اسم الشخص:</b> ${customerName}</div>` : ''}
                     <div class="col-span-2 bg-red-50 p-2 rounded border border-red-200 text-red-700">⚠️ <b>العطل:</b> ${o.faults || ''}</div>
                 </div>`; 
                 
@@ -3197,14 +3525,9 @@
         });
 
         window.onload = () => { 
-            loggedUser = restoreSavedUser();
+            loggedUser = null;
+            prefillSavedLoginCredentials();
             checkAuth(); 
-            if(loggedUser) {
-                const loader = document.getElementById('global-loader');
-                if (loader) loader.classList.remove('hidden');
-                startCloudSyncLoop();
-                fetchFromCloud(false);
-            }
             const backdrop = document.getElementById('sidebar-backdrop');
             if (backdrop) {
                 backdrop.addEventListener('click', closeSidebar);
