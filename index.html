@@ -426,3 +426,131 @@
 ${(()=>{if(!document.getElementById("ord-assigned-tech")){const faults=document.getElementById("ord-faults");if(faults&&faults.parentElement){const field=document.createElement("div"),label=document.createElement("label"),select=document.createElement("select");label.htmlFor="ord-assigned-tech";label.className="font-bold text-xs block mb-1 text-gray-600";label.textContent="المهندس المسؤول (اختياري)";select.id="ord-assigned-tech";select.className="rounded-xl w-full font-bold py-2 text-xs px-3 border";field.append(label,select);faults.parentElement.insertAdjacentElement("beforebegin",field);const refresh=function(){const selected=select.value;select.replaceChildren(new Option("بدون تعيين",""));users.filter(user=>user.role==="مهندس صيانة").forEach(user=>select.add(new Option(user.name,user.name)));if(Array.from(select.options).some(option=>option.value===selected))select.value=selected};refresh();const openAddModal=openAddOrderModal;openAddOrderModal=function(){openAddModal();refresh()};const submitOrder=submitOrderForm;submitOrderForm=async function(button){const tech=select.value.trim();if(!tech)return submitOrder(button);const pushOrder=pushOrderToCloud;pushOrderToCloud=async function(order){order.assignedTech=tech;order.status="IN_PROGRESS";order.statusText=STATUS_MAP.IN_PROGRESS;order.updatedAt=Date.now();appendAuditEntry("تم تعيين التذكرة رقم #"+order.id+" للمهندس "+tech+" عند الاستلام.",{orderId:order.id,action:"ASSIGN"});return pushOrder(order)};try{return await submitOrder(button)}finally{pushOrderToCloud=pushOrder}}}const originalRenderOrders=renderOrders;renderOrders=function(){originalRenderOrders();if(!loggedUser||!["مدير نظام","موظف استقبال"].includes(loggedUser.role))return;document.querySelectorAll('#orders-list-container > div[onclick^="openUpdateOrderModal("]').forEach(card=>{const orderId=(card.getAttribute("onclick")||"").replace("openUpdateOrderModal(","").replace(")","");const order=orders.find(item=>String(item.id)===orderId);if(!order||order.status!=="DAMAGED")return;const actions=document.createElement("div");actions.className="flex gap-2 justify-end pt-2";[["REPLACE","صرف بديل بسند","bg-amber-600 hover:bg-amber-700"],["RETURN","إرجاع بسند","bg-red-600 hover:bg-red-700"]].forEach(([action,label,color])=>{const button=document.createElement("button");button.type="button";button.className="text-white rounded-xl px-3 py-2 text-xs font-extrabold "+color;button.textContent=label;button.addEventListener("click",event=>{event.stopPropagation();document.getElementById("upd-order-id").value=order.id;openDeliveryReceiptModal(action)});actions.appendChild(button)});card.appendChild(actions)})}}return ""})()}
 ${(()=>{if(window.__damagedOrderActionsInstalled)return "";window.__damagedOrderActionsInstalled=true;const replaceButton=document.getElementById("btn-open-replace");if(replaceButton&&!document.getElementById("btn-open-return")){const returnButton=document.createElement("button");returnButton.id="btn-open-return";returnButton.type="button";returnButton.className=replaceButton.className;returnButton.classList.add("hidden");returnButton.innerHTML='<i class="fa-solid fa-rotate-left"></i> إرجاع بسند (A5)';returnButton.onclick=function(){openDeliveryReceiptModal("RETURN")};replaceButton.insertAdjacentElement("afterend",returnButton);const originalOpenUpdate=openUpdateOrderModal;openUpdateOrderModal=function(id){originalOpenUpdate(id);const order=orders.find(item=>String(item.id)===String(id));const canReturn=!!order&&order.status==="DAMAGED"&&loggedUser&&["مدير نظام","موظف استقبال"].includes(loggedUser.role);returnButton.classList.toggle("hidden",!canReturn)};const originalOpenReceipt=openDeliveryReceiptModal;openDeliveryReceiptModal=function(action="DELIVER"){originalOpenReceipt(action);if(action==="RETURN"){document.getElementById("delivery-modal-title").innerHTML='<i class="fa-solid fa-rotate-left"></i> إرجاع جهاز تالف (A5)';document.getElementById("delivery-submit-btn").innerHTML='<i class="fa-solid fa-share-from-square"></i> تأكيد الإرجاع وتصدير السند'}};const originalConfirm=confirmAndPrintDeliveryA5;confirmAndPrintDeliveryA5=function(){if(currentDeliveryAction!=="RETURN")return originalConfirm();const originalAudit=appendAuditEntry;appendAuditEntry=function(message,details={}){if(details.action==="RETURN"){const order=orders.find(item=>String(item.id)===String(details.orderId));message="تم إرجاع التذكرة رقم #"+details.orderId+" إلى "+(order&&order.deliveryDetails&&order.deliveryDetails.org||"الجهة المسجلة")+" باسم "+(order&&order.deliveryDetails&&order.deliveryDetails.name||"غير محدد")+"."}return originalAudit(message,details)};try{return originalConfirm()}finally{appendAuditEntry=originalAudit}};const originalPrint=executePrintA5;executePrintA5=function(item,meta=null){const items=Array.isArray(item)?item:[item];const isReturn=meta&&meta.action==="RETURN"||items.some(entry=>entry&&entry.deliveryDetails&&entry.deliveryDetails.action==="RETURN");if(!isReturn)return originalPrint(item,meta);const first=items[0],details=meta||first.deliveryDetails||{},rows=items.map(entry=>`<tr><td>${entry.brand||""} ${entry.model||""}</td><td dir="ltr">${entry.serial||"بدون"}</td><td>${entry.assignedTech||"غير محدد"}</td><td>${entry.faults||""}</td></tr>`).join("");const html=`<style>.a5-page{width:148mm;min-height:210mm;padding:12mm;box-sizing:border-box;background:#fff;font-family:Cairo,sans-serif}.hd-wrap{background:#b91c1c;color:#fff;text-align:center;padding:15px;border-radius:10px;margin-bottom:15px}.tb{width:100%;border-collapse:collapse;margin:12px 0}.tb td,.tb th{border:1px solid #cbd5e1;padding:8px;font-size:12px;text-align:right}.tb th{background:#b91c1c;color:#fff}.sig{display:flex;justify-content:space-between;margin-top:40px;text-align:center;font-weight:800}.sig div{width:42%;border-top:2px solid #94a3b8;padding-top:6px}</style><div class="a5-page" dir="rtl"><div class="hd-wrap"><h2>سند إرجاع جهاز تالف</h2><p>رقم التذكرة: #${first.id}</p></div><table class="tb"><tr><td><b>الجهة:</b> ${details.org||""}</td><td><b>المستلم:</b> ${details.name||""}</td></tr><tr><td colspan="2"><b>التاريخ:</b> ${details.dateStr||""}</td></tr></table><table class="tb"><thead><tr><th>الجهاز</th><th>السيريال</th><th>المهندس</th><th>العطل</th></tr></thead><tbody>${rows}</tbody></table><p style="text-align:center;color:#64748b">أُعيد الجهاز التالف إلى الجهة/الشخص المستلم الموضح أعلاه.</p><div class="sig"><div>توقيع موظف الاستقبال</div><div>توقيع المستلم</div></div></div>`;triggerExportModal(html,148,210,"سند_إرجاع_"+first.id,"A5")}}return ""})()}
                 `}).join("")+t}setTimeout(renderCharts,100)}function openScannerModal(){openModal("modal-scanner"),html5QrCodeScanner=new Html5QrcodeScanner("qr-reader",{fps:10,qrbox:{width:220,height:100}},!1),html5QrCodeScanner.render(onScanSuccess,()=>{})}function onScanSuccess(e){let t=e.replace(/[^0-9]/g,"");t&&(closeScannerModal(),(e=orders.find(e=>e.id.toString()===t.toString()))?("DELIVERED"===e.status||"REPLACED"===e.status?openDeliveredViewModal:openUpdateOrderModal)(e.id):alert("⚠️ لم يتم العثور على تذكرة."))}function closeScannerModal(){html5QrCodeScanner&&(html5QrCodeScanner.clear(),html5QrCodeScanner=null),closeModal("modal-scanner")}function updateBadges(){const e=document.getElementById("badge-orders-count"),t=document.getElementById("badge-delivered-count");e&&(e.innerText=orders.filter(e=>"DELIVERED"!==e.status&&"REPLACED"!==e.status).length),t&&(t.innerText=orders.filter(e=>"DELIVERED"===e.status||"REPLACED"===e.status).length),updateOrderTabCounts()}function renderAll(){updateBadges(),renderDashboard(),renderOrders(),renderDelivered(),renderTechnicians(),toggleTechReportPanel(),renderRoleActivityPanel()}document.addEventListener("DOMContentLoaded",function(){document.querySelectorAll(".chart-mode-btn").forEach(e=>{e.addEventListener("click",function(){currentChartMode=e.dataset.chartMode||"MOST_MAINTAINED",renderCharts()})})}),document.addEventListener("click",function(e){const t=document.getElementById("main-sidebar");var r,n,a=document.getElementById("sidebar-backdrop");const s=document.getElementById("mobile-menu-toggle");!t||!a||768<=window.innerWidth||(r=t.contains(e.target),n=s&&s.contains(e.target),a=e.target===a,!t.classList.contains("open")||r||n||a||closeSidebar(),a&&closeSidebar())});(()=>{const contextKey="sys_whatsapp_return_context";const modal=document.createElement("div");modal.id="notification-share-modal";modal.className="fixed inset-0 z-[250] hidden items-center justify-center bg-black/50 p-4";modal.innerHTML='<div class="w-full max-w-sm rounded-2xl bg-white p-6 text-right shadow-2xl" dir="rtl"><h3 class="mb-2 text-lg font-extrabold text-gray-800">مشاركة إشعار التذكرة</h3><p class="mb-4 text-xs text-gray-500">اختر طريقة مشاركة الإشعار</p><div class="space-y-2"><button type="button" data-share-method="whatsapp" class="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white"><i class="fa-brands fa-whatsapp ml-2"></i>واتساب</button><button type="button" data-share-method="system" class="w-full rounded-xl bg-sky-700 px-4 py-3 text-sm font-bold text-white"><i class="fa-solid fa-share-nodes ml-2"></i>اختيار تطبيق المشاركة</button><button type="button" data-share-method="copy" class="w-full rounded-xl bg-gray-100 px-4 py-3 text-sm font-bold text-gray-700"><i class="fa-solid fa-copy ml-2"></i>نسخ نص الإشعار</button><button type="button" data-share-method="cancel" class="w-full rounded-xl px-4 py-2 text-sm font-bold text-gray-500">إلغاء</button></div></div>';document.body.appendChild(modal);const close=()=>{modal.classList.add("hidden");modal.classList.remove("flex")};modal.addEventListener("click",event=>{if(event.target===modal)close()});modal.querySelector('[data-share-method="cancel"]').addEventListener("click",close);const remember=id=>{const active=document.querySelector(".view-section:not(.hidden)");sessionStorage.setItem(contextKey,JSON.stringify({id:String(id),view:active&&active.id||"view-orders",filter:currentOrderFilter,search:document.getElementById("search-orders")?.value||""}))};const copyText=async text=>{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return}const input=document.createElement("textarea");input.value=text;input.style.position="fixed";input.style.opacity="0";document.body.appendChild(input);input.select();const copied=document.execCommand("copy");input.remove();if(!copied)throw new Error("تعذر نسخ نص الإشعار")};modal.querySelector('[data-share-method="whatsapp"]').addEventListener("click",()=>{const id=modal.dataset.orderId,order=orders.find(item=>String(item.id)===id);if(!order)return close();window.open("https://api.whatsapp.com/send?text="+encodeURIComponent(getOrderWhatsAppText(order)),"_blank");toggleWhatsAppSent(order.id,true);playSoftSystemSound("status");close()});modal.querySelector('[data-share-method="system"]').addEventListener("click",async()=>{const order=orders.find(item=>String(item.id)===modal.dataset.orderId);if(!order)return close();if(!navigator.share){try{await copyText(getOrderWhatsAppText(order));alert("تم نسخ نص الإشعار؛ يمكنك لصقه في تطبيق المشاركة الذي تريده.")}catch(error){alert(error.message)}close();return}try{await navigator.share({title:"إشعار التذكرة #"+order.id,text:getOrderWhatsAppText(order)});toggleWhatsAppSent(order.id,true);playSoftSystemSound("status")}catch(error){if(error.name!=="AbortError")alert("تعذرت مشاركة الإشعار: "+error.message)}finally{close()}});modal.querySelector('[data-share-method="copy"]').addEventListener("click",async()=>{const order=orders.find(item=>String(item.id)===modal.dataset.orderId);if(!order)return close();try{await copyText(getOrderWhatsAppText(order));alert("تم نسخ نص الإشعار. يمكنك لصقه في واتساب أو أي تطبيق آخر.")}catch(error){alert("تعذر نسخ الإشعار: "+error.message)}finally{close()}});window.sendOrderWhatsAppStatus=function(id){const order=orders.find(item=>String(item.id)===String(id));if(!order||loggedUser&&loggedUser.role==="مهندس صيانة"||!["READY","DAMAGED"].includes(String(order.status||"NEW").toUpperCase()))return;remember(order.id);modal.dataset.orderId=String(order.id);modal.classList.remove("hidden");modal.classList.add("flex")};window.restoreWhatsAppReturnContext=function(){const raw=sessionStorage.getItem(contextKey);if(!raw||!loggedUser)return;sessionStorage.removeItem(contextKey);const context=safeParse(raw,null);if(!context||!context.id)return;currentOrderFilter=context.filter||"ALL";const search=document.getElementById("search-orders");if(search)search.value=context.search||"";if(context.view&&context.view.startsWith("view-"))switchView(context.view.slice(5),document.getElementById("nav-"+context.view.slice(5)));renderOrders();let card=[...document.querySelectorAll('#orders-list-container > div[onclick^="openUpdateOrderModal("]')].find(item=>item.getAttribute("onclick")==="openUpdateOrderModal("+context.id+")");if(!card&&search){search.value=context.id;renderOrders();card=[...document.querySelectorAll('#orders-list-container > div[onclick^="openUpdateOrderModal("]')].find(item=>item.getAttribute("onclick")==="openUpdateOrderModal("+context.id+")")}if(card)requestAnimationFrame(()=>card.scrollIntoView({behavior:"smooth",block:"center"}))};const originalLogout=handleLogout;handleLogout=function(){sessionStorage.removeItem(contextKey);localStorage.removeItem("sys_logged_user_v11_3");originalLogout()}})();window.onload=()=>{loggedUser=restoreSavedUser();prefillSavedLoginCredentials();checkAuth();if(loggedUser){startCloudSyncLoop();fetchFromCloud()}window.restoreWhatsAppReturnContext();const e=document.getElementById("sidebar-backdrop");e&&e.addEventListener("click",closeSidebar)}</script>
+<script>
+(() => {
+    const faults = document.getElementById("ord-faults");
+    if (!faults || !faults.parentElement) return;
+
+    const field = document.createElement("div");
+    const label = document.createElement("label");
+    const statusSelect = document.createElement("select");
+    const deliveryFields = document.createElement("div");
+    label.htmlFor = "ord-card-status";
+    label.className = "font-bold text-xs block mb-1 text-gray-600";
+    label.textContent = "حالة الكرت (اختياري)";
+    statusSelect.id = "ord-card-status";
+    statusSelect.className = "rounded-xl w-full font-bold py-2 text-xs px-3 border";
+    field.append(label, statusSelect);
+
+    deliveryFields.id = "ord-delivery-fields";
+    deliveryFields.className = "hidden mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3";
+    deliveryFields.innerHTML = `
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label for="ord-delivery-org" class="block text-xs font-bold text-gray-700 mb-1">الجهة المستلمة *</label>
+                <input id="ord-delivery-org" type="text" class="w-full border rounded-xl px-3 py-2 text-xs font-bold">
+            </div>
+            <div>
+                <label for="ord-delivery-name" class="block text-xs font-bold text-gray-700 mb-1">اسم المستلم *</label>
+                <input id="ord-delivery-name" type="text" class="w-full border rounded-xl px-3 py-2 text-xs font-bold">
+            </div>
+        </div>
+        <div>
+            <label for="ord-delivery-date" class="block text-xs font-bold text-gray-700 mb-1">تاريخ التسليم</label>
+            <input id="ord-delivery-date" type="date" class="w-full border rounded-xl px-3 py-2 text-xs font-bold">
+        </div>
+        <div>
+            <label for="ord-delivery-notes" class="block text-xs font-bold text-gray-700 mb-1">ما أنجزه المهندس (إن وجد)</label>
+            <textarea id="ord-delivery-notes" rows="2" class="w-full border rounded-xl px-3 py-2 text-xs font-bold" placeholder="ملاحظات الإنجاز أو العمل المنفذ"></textarea>
+        </div>`;
+    field.append(deliveryFields);
+
+    const placeStatusField = () => {
+        const currentTechSelect = document.getElementById("ord-assigned-tech");
+        const anchor = currentTechSelect ? currentTechSelect.parentElement : faults.parentElement;
+        if (anchor && field.previousElementSibling !== anchor) {
+            anchor.insertAdjacentElement("afterend", field);
+        }
+    };
+    placeStatusField();
+    new MutationObserver(placeStatusField).observe(faults.parentElement.parentElement, { childList: true, subtree: true });
+
+    const refreshStatusOptions = () => {
+        const selected = statusSelect.value;
+        statusSelect.replaceChildren(new Option("استخدم الحالة الافتراضية", ""));
+        Object.entries(STATUS_MAP).forEach(([value, text]) => {
+            statusSelect.add(new Option(text, value));
+        });
+        if (Array.from(statusSelect.options).some(option => option.value === selected)) {
+            statusSelect.value = selected;
+        }
+    };
+    refreshStatusOptions();
+
+    const deliveryOrgInput = deliveryFields.querySelector("#ord-delivery-org");
+    const deliveryNameInput = deliveryFields.querySelector("#ord-delivery-name");
+    const deliveryDateInput = deliveryFields.querySelector("#ord-delivery-date");
+    const deliveryNotesInput = deliveryFields.querySelector("#ord-delivery-notes");
+    const updateDeliveryFields = () => {
+        const isDelivered = statusSelect.value === "DELIVERED";
+        deliveryFields.classList.toggle("hidden", !isDelivered);
+        if (isDelivered) {
+            if (!deliveryOrgInput.value) deliveryOrgInput.value = document.getElementById("ord-org").value.trim();
+            if (!deliveryNameInput.value) deliveryNameInput.value = document.getElementById("ord-customer").value.trim();
+            if (!deliveryDateInput.value) deliveryDateInput.value = getDateInputValueForToday();
+        }
+    };
+    statusSelect.addEventListener("change", updateDeliveryFields);
+
+    const originalOpenAddOrderModal = openAddOrderModal;
+    openAddOrderModal = function() {
+        originalOpenAddOrderModal();
+        placeStatusField();
+        refreshStatusOptions();
+        statusSelect.value = "";
+        deliveryFields.classList.add("hidden");
+        deliveryOrgInput.value = "";
+        deliveryNameInput.value = "";
+        deliveryDateInput.value = getDateInputValueForToday();
+        deliveryNotesInput.value = "";
+    };
+
+    const originalSubmitOrderForm = submitOrderForm;
+    submitOrderForm = async function(button) {
+        if (statusSelect.value === "DELIVERED" &&
+            (!deliveryOrgInput.value.trim() || !deliveryNameInput.value.trim())) {
+            alert("يرجى تعبئة الجهة المستلمة واسم المستلم لإتمام التسليم.");
+            return;
+        }
+        return originalSubmitOrderForm(button);
+    };
+
+    const originalPushOrderToCloud = pushOrderToCloud;
+    pushOrderToCloud = async function(order) {
+        const selectedStatus = statusSelect.value;
+        if (selectedStatus) {
+            order.status = selectedStatus;
+            order.statusText = STATUS_MAP[selectedStatus];
+            order.updatedAt = Date.now();
+        }
+        if (selectedStatus === "DELIVERED") {
+            const org = deliveryOrgInput.value.trim();
+            const name = deliveryNameInput.value.trim();
+            const date = deliveryDateInput.value;
+            order.notes = deliveryNotesInput.value.trim();
+            order.deliveryDetails = {
+                action: "DELIVER",
+                org,
+                name,
+                dateStr: formatReceiptDateInput(date),
+                timestamp: new Date(date || Date.now()).getTime()
+            };
+            appendAuditEntry(`تم تسليم الطلب رقم #${order.id} للجهة ${org} باسم ${name}.`, {
+                orderId: order.id,
+                action: "DELIVER"
+            });
+        }
+        return originalPushOrderToCloud(order);
+    };
+})();
+</script>
